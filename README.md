@@ -2,6 +2,16 @@
 
 Plugin de Moodle para generar reportes de cumplimiento docente basados en análisis de recursos por semana.
 
+## ⚠️ Alcance Actual
+
+**Este sistema analiza actualmente LA SECCIÓN "RECURSOS O MATERIAL DE APOYO"** de los cursos.
+
+En futuras versiones se agregarán análisis para otras secciones del curso como:
+- Actividades
+- Evaluaciones
+- Foros
+- Etc.
+
 ## Características Principales
 
 ### 1. Filtros Jerárquicos
@@ -17,9 +27,9 @@ Los filtros funcionan de manera flexible:
 - Seleccionar Modalidad + Carrera muestra cursos de esa carrera específica
 - Seleccionar todos los niveles muestra el nivel más específico
 
-### 2. Análisis por Modalidad
+### 2. Análisis por Modalidad (Sección: Recursos o Material de Apoyo)
 
-El sistema analiza automáticamente cursos de las siguientes modalidades:
+El sistema analiza automáticamente la sección "Recursos o Material de Apoyo" de cursos con las siguientes modalidades:
 
 #### Modalidades Presencial, Semipresencial, Híbrida y En Línea
 - **Mínimo de semanas:** 3 semanas
@@ -33,9 +43,9 @@ El sistema analiza automáticamente cursos de las siguientes modalidades:
 - **Video por semana:** 1 video (obligatorio)
 - **Validación de fechas:** Posterior a fecha de inicio del curso
 
-### 3. Análisis de Recursos por Semana
+### 3. Análisis de la Sección "Recursos o Material de Apoyo" por Semana
 
-#### Criterios de Evaluación por Semana:
+#### Criterios de Evaluación por Semana en Material de Apoyo:
 
 Cada semana se evalúa con los siguientes criterios (según modalidad):
 
@@ -45,9 +55,30 @@ Cada semana se evalúa con los siguientes criterios (según modalidad):
 - Tipos válidos: Página, Archivo, Etiqueta, Aviso, Libro, Carpeta, URL
 
 **2. Debe incluir 1 video (todas las modalidades):**
-- Video cargado como archivo
-- Video embebido en etiqueta
-- URL de video (YouTube, Vimeo, etc.)
+
+El sistema detecta videos de múltiples fuentes:
+
+*Archivos de video cargados:*
+- Formatos: MP4, AVI, MOV, WMV, FLV, MKV, WEBM, M4V, MPEG, MPG
+- Detecta por MIME type (video/*) y por extensión de archivo
+
+*URLs de video (recurso tipo URL):*
+- YouTube (youtube.com, youtu.be, embeds)
+- Vimeo (vimeo.com)
+- Dailymotion (dailymotion.com, dai.ly)
+- Loom (loom.com)
+- Panopto (panopto.*)
+- Kaltura (kaltura.*)
+- Wistia (wistia.com)
+- Google Drive (videos compartidos)
+- Facebook, Instagram, TikTok, Twitch
+- Enlaces directos a archivos de video (.mp4, .avi, .mov, .webm)
+
+*Videos embebidos en páginas/etiquetas:*
+- Tag HTML5 `<video>`
+- iframes de plataformas de video (YouTube, Vimeo, etc.)
+- Videos en capítulos de libros (book)
+- Shortcodes de video
 
 **3. Validación de fechas (todas las modalidades):**
 - Todos los recursos deben tener una fecha de edición **posterior** a la fecha de inicio del curso

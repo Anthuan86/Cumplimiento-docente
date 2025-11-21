@@ -114,7 +114,8 @@ echo $OUTPUT->header();
 
     <!-- Análisis del curso -->
     <div class="course-analysis">
-        <h4>Resultado del Análisis</h4>
+        <h4>Análisis: Sección "Recursos o Material de Apoyo"</h4>
+        <p class="text-muted"><small>Análisis por semanas de la sección de Material de Apoyo del curso</small></p>
 
         <?php if (!$analisis['requiere_analisis']): ?>
             <div class="alert alert-secondary">

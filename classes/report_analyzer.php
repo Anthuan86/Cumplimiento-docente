@@ -161,10 +161,20 @@ class report_analyzer {
     }
 
     /**
-     * Analiza los recursos de un curso por semanas
+     * Analiza la sección "Recursos o Material de Apoyo" de un curso por semanas
+     *
+     * NOTA: Este análisis es ESPECÍFICO para la sección "Recursos o Material de Apoyo".
+     * En el futuro se agregarán métodos adicionales para analizar otras secciones del curso.
+     *
+     * Modalidades analizadas:
+     * - Presencial, Semipresencial, Híbrida, En Línea: Mínimo 3 semanas, 1 recurso/semana
+     * - Distancia: Mínimo 8 semanas, 3 recursos/semana
+     *
+     * Todas requieren: 1 video por semana + fecha de edición posterior al inicio del curso
+     *
      * @param int $course_id ID del curso
      * @param string $modalidad_name Nombre de la modalidad
-     * @return array Resultados del análisis
+     * @return array Resultados del análisis de la sección Material de Apoyo
      */
     public static function analyze_course_resources($course_id, $modalidad_name) {
         global $DB;
@@ -442,32 +452,8 @@ class report_analyzer {
                     $fecha_modificacion = $instancia->timemodified;
                 }
 
-                // Detectar videos
-                if ($module->modname === 'resource') {
-                    // Obtener el archivo asociado
-                    $fs = get_file_storage();
-                    $context = \context_module::instance($module->id);
-                    $files = $fs->get_area_files($context->id, 'mod_resource', 'content', 0, 'sortorder', false);
-
-                    foreach ($files as $file) {
-                        $mimetype = $file->get_mimetype();
-                        if (strpos($mimetype, 'video/') === 0) {
-                            $es_video = true;
-                            break;
-                        }
-                    }
-                } else if ($module->modname === 'url' && isset($instancia->externalurl)) {
-                    // Detectar URLs de video (YouTube, Vimeo, etc.)
-                    $url = $instancia->externalurl;
-                    if (preg_match('/(youtube|youtu\.be|vimeo|dailymotion)/i', $url)) {
-                        $es_video = true;
-                    }
-                } else if ($module->modname === 'label' && isset($instancia->intro)) {
-                    // Detectar videos embebidos en etiquetas
-                    if (preg_match('/<video|<iframe.*?(youtube|vimeo)/i', $instancia->intro)) {
-                        $es_video = true;
-                    }
-                }
+                // Detectar videos (mejorado para detectar múltiples fuentes)
+                $es_video = self::detect_video_in_module($module, $instancia);
             }
         } catch (\Exception $e) {
             // Si hay error, retornar null
@@ -486,6 +472,166 @@ class report_analyzer {
             'fecha_valida' => $fecha_valida,
             'fecha_inicio_curso' => $course_startdate
         ];
+    }
+
+    /**
+     * Detecta si un módulo contiene o es un video
+     * Detecta: archivos de video, URLs de video (YouTube, Vimeo, etc.), videos embebidos
+     * @param object $module Objeto del módulo
+     * @param object $instancia Instancia del módulo
+     * @return bool True si contiene video, false si no
+     */
+    private static function detect_video_in_module($module, $instancia) {
+        $es_video = false;
+
+        try {
+            // 1. Detectar archivos de video (resource)
+            if ($module->modname === 'resource') {
+                $fs = get_file_storage();
+                $context = \context_module::instance($module->id);
+                $files = $fs->get_area_files($context->id, 'mod_resource', 'content', 0, 'sortorder', false);
+
+                foreach ($files as $file) {
+                    $mimetype = $file->get_mimetype();
+                    $filename = strtolower($file->get_filename());
+
+                    // Detectar por MIME type
+                    if (strpos($mimetype, 'video/') === 0) {
+                        $es_video = true;
+                        break;
+                    }
+
+                    // Detectar por extensión de archivo (backup)
+                    $video_extensions = ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.mkv', '.webm', '.m4v', '.mpeg', '.mpg'];
+                    foreach ($video_extensions as $ext) {
+                        if (substr($filename, -strlen($ext)) === $ext) {
+                            $es_video = true;
+                            break 2;
+                        }
+                    }
+                }
+            }
+
+            // 2. Detectar URLs de video (url)
+            if ($module->modname === 'url' && isset($instancia->externalurl)) {
+                $url = $instancia->externalurl;
+
+                // Patrones de URLs de video más completos
+                $video_patterns = [
+                    '/youtube\.com\/watch/i',
+                    '/youtu\.be\//i',
+                    '/youtube\.com\/embed/i',
+                    '/youtube\.com\/v\//i',
+                    '/vimeo\.com\//i',
+                    '/dailymotion\.com/i',
+                    '/dai\.ly\//i',
+                    '/wistia\.com/i',
+                    '/loom\.com/i',
+                    '/panopto\./i',
+                    '/kaltura\./i',
+                    '/viddler\.com/i',
+                    '/twitch\.tv/i',
+                    '/facebook\.com.*\/videos/i',
+                    '/fb\.watch/i',
+                    '/instagram\.com.*\/p\//i',
+                    '/tiktok\.com/i',
+                    '/drive\.google\.com.*\/file/i', // Google Drive videos
+                    '/\.mp4(\?|$)/i', // Direct video links
+                    '/\.avi(\?|$)/i',
+                    '/\.mov(\?|$)/i',
+                    '/\.webm(\?|$)/i',
+                ];
+
+                foreach ($video_patterns as $pattern) {
+                    if (preg_match($pattern, $url)) {
+                        $es_video = true;
+                        break;
+                    }
+                }
+            }
+
+            // 3. Detectar videos embebidos en etiquetas (label)
+            if ($module->modname === 'label' && isset($instancia->intro)) {
+                $content = $instancia->intro;
+
+                // Patrones de detección de videos embebidos
+                $embed_patterns = [
+                    '/<video[\s>]/i',                          // Tag <video>
+                    '/<iframe.*?youtube/i',                    // YouTube iframe
+                    '/<iframe.*?vimeo/i',                      // Vimeo iframe
+                    '/<iframe.*?dailymotion/i',                // Dailymotion iframe
+                    '/<iframe.*?wistia/i',                     // Wistia iframe
+                    '/<iframe.*?loom/i',                       // Loom iframe
+                    '/<iframe.*?panopto/i',                    // Panopto iframe
+                    '/<embed.*?type=["\']video/i',             // Embed tag con video
+                    '/\[video\]/i',                            // Shortcode [video]
+                    '/src=["\'].*?\.(mp4|avi|mov|webm)/i',     // Source con extensión de video
+                ];
+
+                foreach ($embed_patterns as $pattern) {
+                    if (preg_match($pattern, $content)) {
+                        $es_video = true;
+                        break;
+                    }
+                }
+            }
+
+            // 4. Detectar videos embebidos en páginas (page)
+            if ($module->modname === 'page' && isset($instancia->content)) {
+                $content = $instancia->content;
+
+                // Mismos patrones que para labels
+                $embed_patterns = [
+                    '/<video[\s>]/i',
+                    '/<iframe.*?youtube/i',
+                    '/<iframe.*?vimeo/i',
+                    '/<iframe.*?dailymotion/i',
+                    '/<iframe.*?wistia/i',
+                    '/<iframe.*?loom/i',
+                    '/<iframe.*?panopto/i',
+                    '/<embed.*?type=["\']video/i',
+                    '/\[video\]/i',
+                    '/src=["\'].*?\.(mp4|avi|mov|webm)/i',
+                ];
+
+                foreach ($embed_patterns as $pattern) {
+                    if (preg_match($pattern, $content)) {
+                        $es_video = true;
+                        break;
+                    }
+                }
+            }
+
+            // 5. Detectar en libros (book) - pueden tener capítulos con videos
+            if ($module->modname === 'book') {
+                global $DB;
+                $chapters = $DB->get_records('book_chapters', ['bookid' => $instancia->id]);
+
+                foreach ($chapters as $chapter) {
+                    if (isset($chapter->content)) {
+                        $content = $chapter->content;
+
+                        $embed_patterns = [
+                            '/<video[\s>]/i',
+                            '/<iframe.*?(youtube|vimeo|dailymotion|wistia|loom|panopto)/i',
+                            '/src=["\'].*?\.(mp4|avi|mov|webm)/i',
+                        ];
+
+                        foreach ($embed_patterns as $pattern) {
+                            if (preg_match($pattern, $content)) {
+                                $es_video = true;
+                                break 2;
+                            }
+                        }
+                    }
+                }
+            }
+
+        } catch (\Exception $e) {
+            // Si hay error, continuar (el video no se detectó)
+        }
+
+        return $es_video;
     }
 
     /**
