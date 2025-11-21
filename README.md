@@ -6,6 +6,17 @@ Plugin de Moodle para generar reportes de cumplimiento docente basados en análi
 
 **Este sistema analiza actualmente LA SECCIÓN "RECURSOS O MATERIAL DE APOYO"** de los cursos.
 
+### Detección Automática de la Sección
+
+El sistema busca automáticamente una sección en el curso cuyo nombre contenga:
+- "Material de Apoyo"
+- "Recursos"
+- "Material"
+
+**IMPORTANTE:** El curso debe tener una sección con uno de estos nombres para que el análisis funcione. Si no encuentra la sección, mostrará un mensaje indicando que debe crearla.
+
+### Futuras Versiones
+
 En futuras versiones se agregarán análisis para otras secciones del curso como:
 - Actividades
 - Evaluaciones

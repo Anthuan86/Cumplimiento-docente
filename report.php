@@ -115,7 +115,16 @@ echo $OUTPUT->header();
     <!-- Análisis del curso -->
     <div class="course-analysis">
         <h4>Análisis: Sección "Recursos o Material de Apoyo"</h4>
-        <p class="text-muted"><small>Análisis por semanas de la sección de Material de Apoyo del curso</small></p>
+        <?php if (isset($analisis['seccion_analizada']) && $analisis['seccion_analizada']): ?>
+            <p class="text-muted">
+                <small>
+                    <i class="icon fa fa-folder fa-fw"></i>
+                    Sección analizada: <strong><?php echo format_string($analisis['seccion_analizada']); ?></strong>
+                </small>
+            </p>
+        <?php else: ?>
+            <p class="text-muted"><small>Análisis por semanas de la sección de Material de Apoyo del curso</small></p>
+        <?php endif; ?>
 
         <?php if (!$analisis['requiere_analisis']): ?>
             <div class="alert alert-secondary">

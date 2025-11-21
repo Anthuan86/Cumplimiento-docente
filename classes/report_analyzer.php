@@ -209,18 +209,55 @@ class report_analyzer {
         $minimo_semanas = $es_distancia ? 8 : 3;
         $minimo_recursos_por_semana = $es_distancia ? 3 : 1;
 
-        // Obtener todos los módulos del curso ordenados por sección
+        // PASO 1: Buscar la sección "Recursos o Material de Apoyo"
+        $sql_section = "SELECT id, name, section
+                        FROM {course_sections}
+                        WHERE course = :course_id
+                        AND visible = 1
+                        ORDER BY section ASC";
+
+        $all_sections = $DB->get_records_sql($sql_section, ['course_id' => $course_id]);
+
+        $material_apoyo_section_id = null;
+        $material_apoyo_section_name = '';
+
+        // Buscar la sección que contenga "Material de Apoyo" o "Recursos"
+        foreach ($all_sections as $section) {
+            $section_name = $section->name ? $section->name : '';
+
+            if (stripos($section_name, 'Material de Apoyo') !== false ||
+                stripos($section_name, 'Recursos') !== false ||
+                stripos($section_name, 'Material') !== false) {
+                $material_apoyo_section_id = $section->id;
+                $material_apoyo_section_name = $section_name;
+                break;
+            }
+        }
+
+        // Si no se encuentra la sección, retornar error
+        if (!$material_apoyo_section_id) {
+            return [
+                'requiere_analisis' => false,
+                'mensaje' => 'No se encontró la sección "Recursos o Material de Apoyo" en este curso. Por favor, cree una sección con ese nombre para poder realizar el análisis.'
+            ];
+        }
+
+        // PASO 2: Obtener solo los módulos de la sección "Material de Apoyo"
         $sql = "SELECT cm.id, cm.section, cm.module, cm.instance, cm.added as timeadded,
                        m.name as modname, cs.section as section_number
                 FROM {course_modules} cm
                 INNER JOIN {modules} m ON m.id = cm.module
                 INNER JOIN {course_sections} cs ON cs.id = cm.section
                 WHERE cm.course = :course_id
+                AND cm.section = :section_id
                 AND cm.visible = 1
                 AND cm.deletioninprogress = 0
-                ORDER BY cs.section ASC, cm.id ASC";
+                ORDER BY cm.id ASC";
 
-        $modules = $DB->get_records_sql($sql, ['course_id' => $course_id]);
+        $modules = $DB->get_records_sql($sql, [
+            'course_id' => $course_id,
+            'section_id' => $material_apoyo_section_id
+        ]);
 
         $semanas_analisis = [];
         $semana_actual = null;
@@ -324,7 +361,8 @@ class report_analyzer {
             'porcentaje_cumplimiento' => $total_semanas > 0 ? round(($semanas_cumplen / $total_semanas) * 100, 2) : 0,
             'semanas' => $semanas_analisis,
             'course_startdate' => $course_startdate,
-            'modalidad_name' => $modalidad_name
+            'modalidad_name' => $modalidad_name,
+            'seccion_analizada' => $material_apoyo_section_name
         ];
     }
 
