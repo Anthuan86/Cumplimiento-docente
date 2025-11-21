@@ -9,15 +9,16 @@ defined('MOODLE_INTERNAL') || die();
 class report_analyzer {
 
     /**
-     * Obtiene las modalidades disponibles
+     * Obtiene las modalidades disponibles (segundo nivel de categorías)
      * @return array Array de modalidades
      */
     public static function get_modalidades() {
         global $DB;
 
-        $sql = "SELECT DISTINCT cc.id, cc.name
+        // Obtener categorías de segundo nivel (depth = 2)
+        $sql = "SELECT DISTINCT cc.id, cc.name, cc.parent, cc.depth
                 FROM {course_categories} cc
-                WHERE cc.parent = 0
+                WHERE cc.depth = 2
                 AND cc.visible = 1
                 ORDER BY cc.name";
 
@@ -79,8 +80,8 @@ class report_analyzer {
     public static function get_cursos($filters = []) {
         global $DB;
 
-        $sql = "SELECT DISTINCT c.id, c.fullname, c.shortname, c.startdate,
-                       cc.name as categoria, cc.parent as categoria_parent,
+        $sql = "SELECT DISTINCT c.id, c.fullname, c.shortname, c.startdate, c.category,
+                       cc.name as categoria, cc.parent as categoria_parent, cc.depth,
                        u.id as docente_id, u.firstname, u.lastname, u.email
                 FROM {course} c
                 INNER JOIN {course_categories} cc ON c.category = cc.id
@@ -100,20 +101,21 @@ class report_analyzer {
         }
         // Filtro por carrera
         else if (!empty($filters['carrera'])) {
-            $sql .= " AND cc.parent = :carrera_id";
+            // Obtener la carrera y todos sus hijos (niveles)
+            $sql .= " AND (cc.id = :carrera_id OR cc.parent = :carrera_id2)";
             $params['carrera_id'] = $filters['carrera'];
+            $params['carrera_id2'] = $filters['carrera'];
         }
-        // Filtro por modalidad
+        // Filtro por modalidad (segundo nivel)
         else if (!empty($filters['modalidad'])) {
-            $sql .= " AND cc.id IN (
-                        SELECT id FROM {course_categories} WHERE parent = :modalidad_id
-                        UNION
-                        SELECT cc2.id FROM {course_categories} cc2
-                        INNER JOIN {course_categories} cc3 ON cc2.parent = cc3.id
-                        WHERE cc3.parent = :modalidad_id2
-                    )";
-            $params['modalidad_id'] = $filters['modalidad'];
-            $params['modalidad_id2'] = $filters['modalidad'];
+            // Obtener todas las categorías descendientes de la modalidad
+            $sql .= " AND cc.path LIKE :modalidad_path";
+
+            // Obtener el path de la modalidad
+            $modalidad = $DB->get_record('course_categories', ['id' => $filters['modalidad']], 'path');
+            if ($modalidad) {
+                $params['modalidad_path'] = $modalidad->path . '/%';
+            }
         }
 
         // Filtro por docente
@@ -128,24 +130,34 @@ class report_analyzer {
     }
 
     /**
-     * Obtiene la modalidad de un curso
+     * Obtiene la modalidad de un curso (categoría de segundo nivel en la jerarquía)
      * @param int $course_id ID del curso
      * @return object|null Objeto con la información de la modalidad
      */
     public static function get_course_modalidad($course_id) {
         global $DB;
 
-        $sql = "SELECT cc_mod.id, cc_mod.name as modalidad_name
-                FROM {course} c
-                INNER JOIN {course_categories} cc ON c.category = cc.id
-                LEFT JOIN {course_categories} cc_carr ON cc.parent = cc_carr.id
-                LEFT JOIN {course_categories} cc_mod ON
-                    (cc.parent = cc_mod.id AND cc_mod.parent = 0) OR
-                    (cc_carr.parent = cc_mod.id AND cc_mod.parent = 0)
-                WHERE c.id = :course_id
-                LIMIT 1";
+        // Obtener la categoría del curso
+        $course = $DB->get_record('course', ['id' => $course_id], 'category', MUST_EXIST);
+        $category = $DB->get_record('course_categories', ['id' => $course->category], '*', MUST_EXIST);
 
-        return $DB->get_record_sql($sql, ['course_id' => $course_id]);
+        // Buscar la modalidad en el path (depth = 2)
+        $path_parts = explode('/', trim($category->path, '/'));
+
+        // El segundo elemento del path (índice 1) es la modalidad (depth=2)
+        if (count($path_parts) >= 2) {
+            $modalidad_id = $path_parts[1];
+            $modalidad = $DB->get_record('course_categories', ['id' => $modalidad_id], 'id, name');
+
+            if ($modalidad) {
+                return (object)[
+                    'id' => $modalidad->id,
+                    'modalidad_name' => $modalidad->name
+                ];
+            }
+        }
+
+        return null;
     }
 
     /**

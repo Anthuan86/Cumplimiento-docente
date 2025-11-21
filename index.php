@@ -24,7 +24,7 @@ $modalidad = optional_param('modalidad', 0, PARAM_INT);
 $carrera = optional_param('carrera', 0, PARAM_INT);
 $nivel = optional_param('nivel', 0, PARAM_INT);
 $docente = optional_param('docente', 0, PARAM_INT);
-$generar = optional_param('generar', 0, PARAM_INT);
+$buscar = optional_param('buscar', 0, PARAM_INT);
 
 // Obtener datos para los filtros
 $modalidades = report_analyzer::get_modalidades();
@@ -32,16 +32,16 @@ $carreras = report_analyzer::get_carreras($modalidad);
 $niveles = report_analyzer::get_niveles($carrera);
 $docentes = report_analyzer::get_docentes();
 
-// Generar reporte si se solicitó
-$reporte = null;
-if ($generar) {
+// Obtener cursos si se aplicaron filtros
+$cursos = null;
+if ($buscar) {
     $filters = [
         'modalidad' => $modalidad,
         'carrera' => $carrera,
         'nivel' => $nivel,
         'docente' => $docente
     ];
-    $reporte = report_analyzer::generate_report($filters);
+    $cursos = report_analyzer::get_cursos($filters);
 }
 
 // Salida de la página
@@ -127,8 +127,8 @@ echo $OUTPUT->header();
                 <!-- Botones de acción -->
                 <div class="form-group row">
                     <div class="col-md-9 offset-md-3">
-                        <button type="submit" name="generar" value="1" class="btn btn-primary">
-                            Generar Reporte
+                        <button type="submit" name="buscar" value="1" class="btn btn-primary">
+                            Buscar Cursos
                         </button>
                         <a href="<?php echo $PAGE->url; ?>" class="btn btn-secondary">
                             Limpiar Filtros
@@ -139,161 +139,101 @@ echo $OUTPUT->header();
         </div>
     </form>
 
-    <?php if ($reporte !== null): ?>
-        <div class="report-results mt-4">
-            <h3>Resultados del Análisis</h3>
+    <?php if ($cursos !== null): ?>
+        <div class="course-list mt-4">
+            <h3>Cursos Encontrados</h3>
 
-            <?php if (empty($reporte)): ?>
+            <?php if (empty($cursos)): ?>
                 <div class="alert alert-info">
                     No se encontraron cursos con los filtros seleccionados.
                 </div>
             <?php else: ?>
                 <div class="alert alert-success">
-                    Se encontraron <strong><?php echo count($reporte); ?></strong> cursos para analizar.
+                    Se encontraron <strong><?php echo count($cursos); ?></strong> cursos.
                 </div>
 
-                <?php foreach ($reporte as $item): ?>
-                    <?php
-                    $curso = $item['curso'];
-                    $modalidad_nombre = $item['modalidad'];
-                    $analisis = $item['analisis'];
-                    ?>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th>Curso</th>
+                                <th>Código</th>
+                                <th>Categoría</th>
+                                <th>Docente</th>
+                                <th>Fecha Inicio</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            // Agrupar cursos por id para evitar duplicados con múltiples docentes
+                            $cursos_agrupados = [];
+                            foreach ($cursos as $curso) {
+                                if (!isset($cursos_agrupados[$curso->id])) {
+                                    $cursos_agrupados[$curso->id] = $curso;
+                                    $cursos_agrupados[$curso->id]->docentes = [];
+                                }
+                                if ($curso->docente_id) {
+                                    $cursos_agrupados[$curso->id]->docentes[] = (object)[
+                                        'id' => $curso->docente_id,
+                                        'nombre' => $curso->firstname . ' ' . $curso->lastname,
+                                        'email' => $curso->email
+                                    ];
+                                }
+                            }
 
-                    <div class="course-report card mb-3">
-                        <div class="card-header">
-                            <h5>
-                                <?php echo format_string($curso->fullname); ?>
-                                <span class="badge badge-info"><?php echo $modalidad_nombre; ?></span>
-                            </h5>
-                            <?php if ($curso->docente_id): ?>
-                                <small class="text-muted">
-                                    Docente: <?php echo format_string($curso->firstname . ' ' . $curso->lastname); ?>
-                                </small>
-                            <?php endif; ?>
-                        </div>
-
-                        <div class="card-body">
-                            <?php if (!$analisis['requiere_analisis']): ?>
-                                <div class="alert alert-secondary">
-                                    <?php echo $analisis['mensaje']; ?>
-                                </div>
-                            <?php else: ?>
-                                <!-- Resumen general -->
-                                <div class="analysis-summary mb-3">
-                                    <div class="row">
-                                        <div class="col-md-3">
-                                            <div class="stat-box text-center p-3 border rounded">
-                                                <h3><?php echo $analisis['total_semanas']; ?></h3>
-                                                <small>Total Semanas</small>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="stat-box text-center p-3 border rounded">
-                                                <h3><?php echo $analisis['semanas_cumplen']; ?></h3>
-                                                <small>Semanas que Cumplen</small>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="stat-box text-center p-3 border rounded">
-                                                <h3><?php echo $analisis['porcentaje_cumplimiento']; ?>%</h3>
-                                                <small>Cumplimiento</small>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="stat-box text-center p-3 border rounded
-                                                <?php echo $analisis['cumple_minimo'] ? 'bg-success text-white' : 'bg-warning'; ?>">
-                                                <h3><?php echo $analisis['cumple_minimo'] ? '✓' : '✗'; ?></h3>
-                                                <small>Mínimo 3 Semanas</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Detalle por semanas -->
-                                <h6>Detalle por Semanas:</h6>
-                                <div class="weeks-detail">
-                                    <?php foreach ($analisis['semanas'] as $semana): ?>
-                                        <div class="week-item card mb-2
-                                            <?php echo $semana['cumple'] ? 'border-success' : 'border-danger'; ?>">
-                                            <div class="card-header
-                                                <?php echo $semana['cumple'] ? 'bg-success text-white' : 'bg-danger text-white'; ?>">
-                                                <strong><?php echo $semana['nombre']; ?></strong>
-                                                <span class="float-right">
-                                                    <?php echo $semana['cumple'] ? '✓ Cumple' : '✗ No Cumple'; ?>
-                                                </span>
-                                            </div>
-                                            <div class="card-body">
-                                                <div class="row">
-                                                    <div class="col-md-4">
-                                                        <strong>Recursos válidos:</strong>
-                                                        <?php echo $semana['recursos_validos']; ?>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <strong>Tiene recurso del docente:</strong>
-                                                        <?php echo $semana['tiene_recurso'] ? '✓ Sí' : '✗ No'; ?>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <strong>Tiene video:</strong>
-                                                        <?php echo $semana['tiene_video'] ? '✓ Sí' : '✗ No'; ?>
-                                                    </div>
-                                                </div>
-
-                                                <?php if (!empty($semana['recursos'])): ?>
-                                                    <div class="recursos-list mt-2">
-                                                        <button class="btn btn-sm btn-link" type="button"
-                                                            data-toggle="collapse"
-                                                            data-target="#recursos-semana-<?php echo $curso->id . '-' . $semana['semana']; ?>">
-                                                            Ver recursos (<?php echo count($semana['recursos']); ?>)
-                                                        </button>
-                                                        <div class="collapse"
-                                                            id="recursos-semana-<?php echo $curso->id . '-' . $semana['semana']; ?>">
-                                                            <table class="table table-sm table-striped">
-                                                                <thead>
-                                                                    <tr>
-                                                                        <th>Tipo</th>
-                                                                        <th>Nombre</th>
-                                                                        <th>Es Recurso</th>
-                                                                        <th>Es Video</th>
-                                                                        <th>Fecha Válida</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    <?php foreach ($semana['recursos'] as $recurso): ?>
-                                                                        <tr class="<?php echo $recurso['fecha_valida'] ? '' : 'table-warning'; ?>">
-                                                                            <td><?php echo $recurso['tipo']; ?></td>
-                                                                            <td><?php echo format_string($recurso['nombre']); ?></td>
-                                                                            <td><?php echo $recurso['es_recurso_docente'] ? '✓' : ''; ?></td>
-                                                                            <td><?php echo $recurso['es_video'] ? '✓' : ''; ?></td>
-                                                                            <td>
-                                                                                <?php
-                                                                                if ($recurso['fecha_valida']) {
-                                                                                    echo '✓ ' . userdate($recurso['fecha_modificacion'], '%d/%m/%Y');
-                                                                                } else {
-                                                                                    echo '✗ Anterior al inicio';
-                                                                                }
-                                                                                ?>
-                                                                            </td>
-                                                                        </tr>
-                                                                    <?php endforeach; ?>
-                                                                </tbody>
-                                                            </table>
-                                                        </div>
-                                                    </div>
-                                                <?php endif; ?>
-                                            </div>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
+                            foreach ($cursos_agrupados as $curso):
+                            ?>
+                                <tr>
+                                    <td>
+                                        <strong><?php echo format_string($curso->fullname); ?></strong>
+                                    </td>
+                                    <td><?php echo s($curso->shortname); ?></td>
+                                    <td>
+                                        <span class="badge badge-secondary">
+                                            <?php echo format_string($curso->categoria); ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <?php if (!empty($curso->docentes)): ?>
+                                            <?php foreach ($curso->docentes as $idx => $doc): ?>
+                                                <?php if ($idx > 0) echo '<br>'; ?>
+                                                <small><?php echo format_string($doc->nombre); ?></small>
+                                            <?php endforeach; ?>
+                                        <?php else: ?>
+                                            <em class="text-muted">Sin docente asignado</em>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <small><?php echo userdate($curso->startdate, '%d/%m/%Y'); ?></small>
+                                    </td>
+                                    <td>
+                                        <a href="report.php?courseid=<?php echo $curso->id; ?>"
+                                           class="btn btn-sm btn-info"
+                                           title="Ver análisis del curso">
+                                            <i class="icon fa fa-chart-bar fa-fw"></i>
+                                            Ver Análisis
+                                        </a>
+                                        <a href="<?php echo new moodle_url('/course/view.php', ['id' => $curso->id]); ?>"
+                                           class="btn btn-sm btn-secondary"
+                                           title="Ir al curso"
+                                           target="_blank">
+                                            <i class="icon fa fa-external-link-alt fa-fw"></i>
+                                            Ir al Curso
+                                        </a>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
 
                 <!-- Botón para exportar -->
                 <div class="text-right mt-3">
                     <a href="export.php?<?php echo http_build_query($_GET); ?>"
                        class="btn btn-success">
-                        Exportar a Excel
+                        <i class="icon fa fa-file-excel fa-fw"></i>
+                        Exportar Lista a Excel
                     </a>
                 </div>
             <?php endif; ?>
@@ -313,33 +253,23 @@ echo $OUTPUT->header();
     margin-bottom: 20px;
 }
 
-.stat-box {
-    background: #fff;
+.table-responsive {
+    background: white;
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.stat-box h3 {
-    margin: 0;
-    font-size: 2em;
+.table thead th {
+    border-top: none;
 }
 
-.week-item {
-    transition: all 0.3s;
+.course-list .badge {
+    font-size: 0.85em;
 }
 
-.week-item:hover {
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-.course-report {
-    border-left: 4px solid #007bff;
-}
-
-.analysis-summary .stat-box {
-    transition: transform 0.2s;
-}
-
-.analysis-summary .stat-box:hover {
-    transform: translateY(-5px);
+.btn-sm {
+    margin: 2px 0;
 }
 </style>
 
