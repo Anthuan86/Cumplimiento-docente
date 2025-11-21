@@ -55,22 +55,35 @@ Cada semana se evalúa con los siguientes criterios (según modalidad):
 
 ### 4. Detección de Semanas
 
-El sistema detecta automáticamente las semanas mediante:
-- Etiquetas de sección con el patrón "Semana X"
-- Todo el contenido después de cada etiqueta pertenece a esa semana
-- Hasta que se encuentra la siguiente etiqueta de semana
+El sistema detecta automáticamente las semanas mediante **etiquetas (labels)** de tipo "Área de texto y medios":
 
-Ejemplo de estructura:
+- Busca etiquetas (labels) cuyo contenido contenga el patrón "Semana X" (case-insensitive)
+- Cuando encuentra una etiqueta con "Semana X", inicia una nueva semana
+- Todos los recursos que aparecen después de esa etiqueta pertenecen a esa semana
+- Hasta que se encuentra la siguiente etiqueta de "Semana Y"
+
+**Estructura en el curso:**
 ```
-Semana 1
-  - Recurso 1
-  - Video 1
-  - Recurso 2
-Semana 2
-  - Recurso 1
-  - Video 1
-...
+Sección 1
+  ├─ [Etiqueta] Semana 1          ← Marca inicio de Semana 1
+  ├─ Página: Introducción         ← Pertenece a Semana 1
+  ├─ Archivo: Video1.mp4          ← Pertenece a Semana 1
+  ├─ URL: https://youtube.com/... ← Pertenece a Semana 1
+  ├─ [Etiqueta] Semana 2          ← Marca inicio de Semana 2
+  ├─ Página: Contenido tema 2     ← Pertenece a Semana 2
+  └─ Archivo: Video2.mp4          ← Pertenece a Semana 2
+
+Sección 2
+  ├─ [Etiqueta] Semana 3          ← Marca inicio de Semana 3
+  ├─ Archivo: Material.pdf        ← Pertenece a Semana 3
+  └─ ...
 ```
+
+**Notas importantes:**
+- Las etiquetas deben ser del tipo "Área de texto y medios" (label en Moodle)
+- El texto "Semana X" puede estar en el título o contenido de la etiqueta
+- Las etiquetas que NO contienen "Semana X" se cuentan como recursos normales
+- El orden es importante: los recursos se asignan a la última semana detectada
 
 ## Instalación
 
@@ -208,9 +221,11 @@ $modulos_recurso = ['page', 'resource', 'label', 'folder', 'url', 'book', 'forum
 
 ### Cambiar patrón de detección de semanas
 
-Editar en `report_analyzer.php`:
+Editar en `report_analyzer.php`, método `analyze_course_resources()`:
 ```php
-if (preg_match('/semana\s*(\d+)/i', $section_name, $matches)) {
+// Buscar "Semana X" en el contenido de la etiqueta
+$label_content = $label->intro . ' ' . $label->name;
+if (preg_match('/semana\s*(\d+)/i', strip_tags($label_content), $matches)) {
     // Modificar expresión regular según necesidad
 }
 ```
@@ -222,8 +237,10 @@ Modificar los criterios en el método `analyze_course_resources()`.
 ## Solución de Problemas
 
 ### No se detectan semanas
-- Verificar que las secciones tengan el nombre "Semana X"
+- Verificar que existan **etiquetas (labels)** de tipo "Área de texto y medios" en el curso
+- Las etiquetas deben contener el texto "Semana X" en su título o contenido
 - El patrón es case-insensitive (SEMANA, Semana, semana)
+- El número de semana debe ser un dígito (1, 2, 3, etc.)
 
 ### Recursos no se cuentan como válidos
 - Verificar la fecha de modificación del recurso

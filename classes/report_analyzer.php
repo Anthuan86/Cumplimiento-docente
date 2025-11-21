@@ -199,42 +199,66 @@ class report_analyzer {
         $minimo_semanas = $es_distancia ? 8 : 3;
         $minimo_recursos_por_semana = $es_distancia ? 3 : 1;
 
-        // Obtener todas las secciones del curso
-        $sections = $DB->get_records('course_sections', ['course' => $course_id], 'section ASC');
+        // Obtener todos los módulos del curso ordenados por sección
+        $sql = "SELECT cm.id, cm.section, cm.module, cm.instance, cm.added as timeadded,
+                       m.name as modname, cs.section as section_number
+                FROM {course_modules} cm
+                INNER JOIN {modules} m ON m.id = cm.module
+                INNER JOIN {course_sections} cs ON cs.id = cm.section
+                WHERE cm.course = :course_id
+                AND cm.visible = 1
+                AND cm.deletioninprogress = 0
+                ORDER BY cs.section ASC, cm.id ASC";
+
+        $modules = $DB->get_records_sql($sql, ['course_id' => $course_id]);
 
         $semanas_analisis = [];
         $semana_actual = null;
         $semana_numero = 0;
 
-        foreach ($sections as $section) {
-            $section_name = $section->name ? $section->name : "Sección " . $section->section;
+        // Procesar cada módulo
+        foreach ($modules as $module) {
+            $es_etiqueta_semana = false;
 
-            // Detectar si es una etiqueta de semana
-            if (preg_match('/semana\s*(\d+)/i', $section_name, $matches)) {
-                // Guardar análisis de semana anterior si existe
-                if ($semana_actual !== null) {
-                    $semanas_analisis[] = $semana_actual;
+            // Si es una etiqueta (label), verificar si es una etiqueta de semana
+            if ($module->modname === 'label') {
+                try {
+                    $label = $DB->get_record('label', ['id' => $module->instance], 'intro, name');
+                    if ($label) {
+                        // Buscar "Semana X" en el contenido de la etiqueta
+                        $label_content = $label->intro . ' ' . $label->name;
+                        if (preg_match('/semana\s*(\d+)/i', strip_tags($label_content), $matches)) {
+                            $es_etiqueta_semana = true;
+
+                            // Guardar análisis de semana anterior si existe
+                            if ($semana_actual !== null) {
+                                $semanas_analisis[] = $semana_actual;
+                            }
+
+                            // Iniciar nueva semana
+                            $semana_numero = intval($matches[1]);
+                            $semana_actual = [
+                                'semana' => $semana_numero,
+                                'nombre' => 'Semana ' . $semana_numero,
+                                'recursos' => [],
+                                'tiene_video' => false,
+                                'tiene_recurso' => false,
+                                'recursos_validos' => 0,
+                                'recursos_docente_validos' => 0,
+                                'cumple' => false
+                            ];
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // Continuar si hay error al obtener la etiqueta
+                    continue;
                 }
-
-                // Iniciar nueva semana
-                $semana_numero = intval($matches[1]);
-                $semana_actual = [
-                    'semana' => $semana_numero,
-                    'nombre' => $section_name,
-                    'recursos' => [],
-                    'tiene_video' => false,
-                    'tiene_recurso' => false,
-                    'recursos_validos' => 0,
-                    'recursos_docente_validos' => 0,
-                    'cumple' => false
-                ];
             }
 
-            // Analizar recursos de la sección actual
-            if ($semana_actual !== null) {
-                $recursos = self::get_section_resources($course_id, $section->id, $course_startdate);
-
-                foreach ($recursos as $recurso) {
+            // Si hay una semana actual y no es una etiqueta de semana, analizar como recurso
+            if ($semana_actual !== null && !$es_etiqueta_semana) {
+                $recurso = self::analyze_module_resource($module, $course_startdate);
+                if ($recurso) {
                     $semana_actual['recursos'][] = $recurso;
 
                     // Verificar si es un recurso válido (creado después del inicio del curso)
@@ -387,6 +411,81 @@ class report_analyzer {
         }
 
         return $recursos;
+    }
+
+    /**
+     * Analiza un módulo individual como recurso
+     * @param object $module Objeto del módulo
+     * @param int $course_startdate Fecha de inicio del curso
+     * @return array|null Información del recurso o null si no es un recurso válido
+     */
+    private static function analyze_module_resource($module, $course_startdate) {
+        global $DB;
+
+        // Tipos de módulos que consideramos como recursos del docente
+        $modulos_recurso = ['page', 'resource', 'label', 'folder', 'url', 'book', 'forum'];
+
+        $es_recurso_docente = in_array($module->modname, $modulos_recurso);
+        $es_video = false;
+        $fecha_modificacion = $module->timeadded;
+        $nombre = '';
+
+        // Obtener detalles específicos según el tipo de módulo
+        try {
+            $instancia = $DB->get_record($module->modname, ['id' => $module->instance]);
+
+            if ($instancia) {
+                $nombre = isset($instancia->name) ? $instancia->name : '';
+
+                // Verificar fecha de modificación
+                if (isset($instancia->timemodified)) {
+                    $fecha_modificacion = $instancia->timemodified;
+                }
+
+                // Detectar videos
+                if ($module->modname === 'resource') {
+                    // Obtener el archivo asociado
+                    $fs = get_file_storage();
+                    $context = \context_module::instance($module->id);
+                    $files = $fs->get_area_files($context->id, 'mod_resource', 'content', 0, 'sortorder', false);
+
+                    foreach ($files as $file) {
+                        $mimetype = $file->get_mimetype();
+                        if (strpos($mimetype, 'video/') === 0) {
+                            $es_video = true;
+                            break;
+                        }
+                    }
+                } else if ($module->modname === 'url' && isset($instancia->externalurl)) {
+                    // Detectar URLs de video (YouTube, Vimeo, etc.)
+                    $url = $instancia->externalurl;
+                    if (preg_match('/(youtube|youtu\.be|vimeo|dailymotion)/i', $url)) {
+                        $es_video = true;
+                    }
+                } else if ($module->modname === 'label' && isset($instancia->intro)) {
+                    // Detectar videos embebidos en etiquetas
+                    if (preg_match('/<video|<iframe.*?(youtube|vimeo)/i', $instancia->intro)) {
+                        $es_video = true;
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            // Si hay error, retornar null
+            return null;
+        }
+
+        $fecha_valida = $fecha_modificacion > $course_startdate;
+
+        return [
+            'id' => $module->id,
+            'tipo' => $module->modname,
+            'nombre' => $nombre,
+            'es_recurso_docente' => $es_recurso_docente,
+            'es_video' => $es_video,
+            'fecha_modificacion' => $fecha_modificacion,
+            'fecha_valida' => $fecha_valida,
+            'fecha_inicio_curso' => $course_startdate
+        ];
     }
 
     /**
