@@ -242,29 +242,60 @@ class report_analyzer {
             ];
         }
 
-        // PASO 2: Obtener solo los módulos de la sección "Material de Apoyo"
+        // PASO 2: Obtener la secuencia de módulos de la sección
+        $section_data = $DB->get_record('course_sections',
+            ['id' => $material_apoyo_section_id],
+            'id, sequence'
+        );
+
+        if (!$section_data || empty($section_data->sequence)) {
+            return [
+                'requiere_analisis' => false,
+                'mensaje' => 'La sección "' . $material_apoyo_section_name . '" no tiene contenido. Por favor, agregue recursos y etiquetas de semana.'
+            ];
+        }
+
+        // Obtener IDs de módulos en el orden correcto
+        $module_ids = explode(',', $section_data->sequence);
+        $module_ids = array_filter($module_ids); // Eliminar vacíos
+
+        if (empty($module_ids)) {
+            return [
+                'requiere_analisis' => false,
+                'mensaje' => 'La sección "' . $material_apoyo_section_name . '" no tiene módulos visibles.'
+            ];
+        }
+
+        // PASO 3: Obtener los módulos en el orden de la secuencia
+        list($in_sql, $params) = $DB->get_in_or_equal($module_ids, SQL_PARAMS_NAMED, 'modid');
+        $params['course_id'] = $course_id;
+
         $sql = "SELECT cm.id, cm.section, cm.module, cm.instance, cm.added as timeadded,
                        m.name as modname, cs.section as section_number
                 FROM {course_modules} cm
                 INNER JOIN {modules} m ON m.id = cm.module
                 INNER JOIN {course_sections} cs ON cs.id = cm.section
                 WHERE cm.course = :course_id
-                AND cm.section = :section_id
+                AND cm.id $in_sql
                 AND cm.visible = 1
-                AND cm.deletioninprogress = 0
-                ORDER BY cm.id ASC";
+                AND cm.deletioninprogress = 0";
 
-        $modules = $DB->get_records_sql($sql, [
-            'course_id' => $course_id,
-            'section_id' => $material_apoyo_section_id
-        ]);
+        $modules = $DB->get_records_sql($sql, $params);
+
+        // Ordenar módulos según la secuencia de la sección
+        $ordered_modules = [];
+        foreach ($module_ids as $module_id) {
+            if (isset($modules[$module_id])) {
+                $ordered_modules[] = $modules[$module_id];
+            }
+        }
 
         $semanas_analisis = [];
         $semana_actual = null;
         $semana_numero = 0;
 
-        // Procesar cada módulo
-        foreach ($modules as $module) {
+        // PASO 4: Procesar cada módulo en el orden correcto de la sección
+        foreach ($ordered_modules as $module) {
             $es_etiqueta_semana = false;
 
             // Si es una etiqueta (label), verificar si es una etiqueta de semana
