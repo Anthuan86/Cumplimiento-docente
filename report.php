@@ -159,7 +159,7 @@ echo $OUTPUT->header();
                             <div class="stat-box text-center p-4 border rounded
                                 <?php echo $analisis['cumple_minimo'] ? 'bg-success text-white' : 'bg-danger text-white'; ?>">
                                 <h2 class="display-4 mb-0"><?php echo $analisis['cumple_minimo'] ? '✓' : '✗'; ?></h2>
-                                <small>Cumple Mínimo (3 semanas)</small>
+                                <small>Cumple Mínimo (<?php echo $analisis['minimo_semanas']; ?> semanas)</small>
                             </div>
                         </div>
                     </div>
@@ -212,23 +212,29 @@ echo $OUTPUT->header();
                                 <!-- Indicadores de cumplimiento -->
                                 <div class="row mb-3">
                                     <div class="col-md-4">
-                                        <div class="requirement-box p-3 border rounded <?php echo $semana['tiene_recurso'] ? 'bg-success-light' : 'bg-danger-light'; ?>">
-                                            <i class="icon fa fa-<?php echo $semana['tiene_recurso'] ? 'check-circle text-success' : 'times-circle text-danger'; ?> fa-fw"></i>
-                                            <strong>Recurso del Docente:</strong><br>
-                                            <small><?php echo $semana['tiene_recurso'] ? 'Sí tiene' : 'No tiene'; ?></small>
+                                        <?php
+                                        $cumple_recursos = $semana['recursos_docente_validos'] >= $analisis['minimo_recursos_por_semana'];
+                                        ?>
+                                        <div class="requirement-box p-3 border rounded <?php echo $cumple_recursos ? 'bg-success-light' : 'bg-danger-light'; ?>">
+                                            <i class="icon fa fa-<?php echo $cumple_recursos ? 'check-circle text-success' : 'times-circle text-danger'; ?> fa-fw"></i>
+                                            <strong>Recursos del Docente:</strong><br>
+                                            <small>
+                                                <?php echo $semana['recursos_docente_validos']; ?> de <?php echo $analisis['minimo_recursos_por_semana']; ?> requerido(s)
+                                                <?php echo $cumple_recursos ? '✓' : '✗'; ?>
+                                            </small>
                                         </div>
                                     </div>
                                     <div class="col-md-4">
                                         <div class="requirement-box p-3 border rounded <?php echo $semana['tiene_video'] ? 'bg-success-light' : 'bg-danger-light'; ?>">
                                             <i class="icon fa fa-<?php echo $semana['tiene_video'] ? 'check-circle text-success' : 'times-circle text-danger'; ?> fa-fw"></i>
                                             <strong>Video:</strong><br>
-                                            <small><?php echo $semana['tiene_video'] ? 'Sí tiene' : 'No tiene'; ?></small>
+                                            <small><?php echo $semana['tiene_video'] ? 'Sí tiene ✓' : 'No tiene ✗'; ?></small>
                                         </div>
                                     </div>
                                     <div class="col-md-4">
                                         <div class="requirement-box p-3 border rounded bg-info-light">
                                             <i class="icon fa fa-list fa-fw text-info"></i>
-                                            <strong>Recursos Válidos:</strong><br>
+                                            <strong>Total Recursos Válidos:</strong><br>
                                             <small><?php echo $semana['recursos_validos']; ?> recurso(s)</small>
                                         </div>
                                     </div>
@@ -300,12 +306,16 @@ echo $OUTPUT->header();
 
             <!-- Nota informativa -->
             <div class="alert alert-info mt-4">
-                <h6><i class="icon fa fa-info-circle fa-fw"></i> Criterios de Evaluación:</h6>
+                <h6><i class="icon fa fa-info-circle fa-fw"></i> Criterios de Evaluación para Modalidad: <strong><?php echo $modalidad_name; ?></strong></h6>
                 <ul class="mb-0">
-                    <li>Cada semana debe tener al menos <strong>1 recurso</strong> generado por el docente (página, archivo, etiqueta, libro, carpeta, URL)</li>
+                    <li>Cada semana debe tener al menos <strong><?php echo $analisis['minimo_recursos_por_semana']; ?> recurso(s)</strong> generado por el docente (página, archivo, etiqueta, libro, carpeta, URL)</li>
                     <li>Cada semana debe incluir al menos <strong>1 video</strong> (archivo de video, URL de YouTube/Vimeo, o video embebido)</li>
-                    <li>Todos los recursos deben haber sido editados <strong>después de la fecha de inicio del curso</strong></li>
-                    <li>La modalidad <strong>"<?php echo $modalidad_name; ?>"</strong> requiere un mínimo de <strong>3 semanas</strong></li>
+                    <li>Todos los recursos deben haber sido editados <strong>después de la fecha de inicio del curso</strong> (<?php echo userdate($analisis['course_startdate'], '%d/%m/%Y'); ?>)</li>
+                    <li>La modalidad requiere un mínimo de <strong><?php echo $analisis['minimo_semanas']; ?> semanas</strong>
+                        <?php if ($analisis['es_distancia']): ?>
+                            <span class="badge badge-warning">Modalidad Distancia</span>
+                        <?php endif; ?>
+                    </li>
                 </ul>
             </div>
         <?php endif; ?>

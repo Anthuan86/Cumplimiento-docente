@@ -174,12 +174,16 @@ class report_analyzer {
         $course_startdate = $course->startdate;
 
         // Verificar si la modalidad requiere análisis por semanas
-        $modalidades_con_semanas = ['Presencial', 'Semipresencial', 'Híbrida', 'En Línea'];
+        $modalidades_con_semanas = ['Presencial', 'Semipresencial', 'Híbrida', 'En Línea', 'Distancia'];
         $requiere_analisis = false;
+        $es_distancia = false;
 
         foreach ($modalidades_con_semanas as $mod) {
             if (stripos($modalidad_name, $mod) !== false) {
                 $requiere_analisis = true;
+                if (stripos($modalidad_name, 'Distancia') !== false) {
+                    $es_distancia = true;
+                }
                 break;
             }
         }
@@ -190,6 +194,10 @@ class report_analyzer {
                 'mensaje' => 'Esta modalidad no requiere análisis por semanas'
             ];
         }
+
+        // Definir requisitos según modalidad
+        $minimo_semanas = $es_distancia ? 8 : 3;
+        $minimo_recursos_por_semana = $es_distancia ? 3 : 1;
 
         // Obtener todas las secciones del curso
         $sections = $DB->get_records('course_sections', ['course' => $course_id], 'section ASC');
@@ -217,6 +225,7 @@ class report_analyzer {
                     'tiene_video' => false,
                     'tiene_recurso' => false,
                     'recursos_validos' => 0,
+                    'recursos_docente_validos' => 0,
                     'cumple' => false
                 ];
             }
@@ -234,6 +243,7 @@ class report_analyzer {
 
                         if ($recurso['es_recurso_docente']) {
                             $semana_actual['tiene_recurso'] = true;
+                            $semana_actual['recursos_docente_validos']++;
                         }
 
                         if ($recurso['es_video']) {
@@ -249,9 +259,16 @@ class report_analyzer {
             $semanas_analisis[] = $semana_actual;
         }
 
-        // Evaluar cumplimiento de cada semana
+        // Evaluar cumplimiento de cada semana según la modalidad
         foreach ($semanas_analisis as &$semana) {
-            $semana['cumple'] = $semana['tiene_recurso'] && $semana['tiene_video'];
+            // Verificar que tenga el mínimo de recursos del docente según modalidad
+            $cumple_recursos = $semana['recursos_docente_validos'] >= $minimo_recursos_por_semana;
+
+            // Verificar que tenga video
+            $cumple_video = $semana['tiene_video'];
+
+            // La semana cumple si tiene ambos requisitos
+            $semana['cumple'] = $cumple_recursos && $cumple_video;
         }
 
         $total_semanas = count($semanas_analisis);
@@ -264,12 +281,16 @@ class report_analyzer {
 
         return [
             'requiere_analisis' => true,
+            'es_distancia' => $es_distancia,
+            'minimo_semanas' => $minimo_semanas,
+            'minimo_recursos_por_semana' => $minimo_recursos_por_semana,
             'total_semanas' => $total_semanas,
             'semanas_cumplen' => $semanas_cumplen,
-            'cumple_minimo' => $total_semanas >= 3,
+            'cumple_minimo' => $total_semanas >= $minimo_semanas,
             'porcentaje_cumplimiento' => $total_semanas > 0 ? round(($semanas_cumplen / $total_semanas) * 100, 2) : 0,
             'semanas' => $semanas_analisis,
-            'course_startdate' => $course_startdate
+            'course_startdate' => $course_startdate,
+            'modalidad_name' => $modalidad_name
         ];
     }
 

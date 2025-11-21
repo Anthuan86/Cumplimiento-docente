@@ -20,34 +20,36 @@ Los filtros funcionan de manera flexible:
 ### 2. Análisis por Modalidad
 
 El sistema analiza automáticamente cursos de las siguientes modalidades:
-- Presencial
-- Semipresencial
-- Híbrida
-- En Línea
 
-Para estas modalidades se requiere un **mínimo de 3 semanas** de contenido.
+#### Modalidades Presencial, Semipresencial, Híbrida y En Línea
+- **Mínimo de semanas:** 3 semanas
+- **Recursos por semana:** Al menos 1 recurso generado por el docente
+- **Video por semana:** 1 video (obligatorio)
+- **Validación de fechas:** Posterior a fecha de inicio del curso
+
+#### Modalidad Distancia
+- **Mínimo de semanas:** 8 semanas
+- **Recursos por semana:** Al menos 3 recursos generados por el docente
+- **Video por semana:** 1 video (obligatorio)
+- **Validación de fechas:** Posterior a fecha de inicio del curso
 
 ### 3. Análisis de Recursos por Semana
 
 #### Criterios de Evaluación por Semana:
 
-Cada semana se evalúa con los siguientes criterios:
+Cada semana se evalúa con los siguientes criterios (según modalidad):
 
-**1. Al menos 1 recurso generado por el docente:**
-- Página
-- Archivo
-- Etiqueta
-- Aviso
-- Libro
-- Carpeta
-- URL
+**1. Recursos generados por el docente:**
+- **Presencial/Semipresencial/Híbrida/En Línea:** Mínimo 1 recurso
+- **Distancia:** Mínimo 3 recursos
+- Tipos válidos: Página, Archivo, Etiqueta, Aviso, Libro, Carpeta, URL
 
-**2. Debe incluir 1 video:**
+**2. Debe incluir 1 video (todas las modalidades):**
 - Video cargado como archivo
 - Video embebido en etiqueta
 - URL de video (YouTube, Vimeo, etc.)
 
-**3. Validación de fechas:**
+**3. Validación de fechas (todas las modalidades):**
 - Todos los recursos deben tener una fecha de edición **posterior** a la fecha de inicio del curso
 - Recursos anteriores al inicio del curso no se cuentan como válidos
 
@@ -184,10 +186,13 @@ El plugin define el permiso `local/cumplimiento_docente:view` asignado por defec
 ## Modalidades Soportadas
 
 El análisis automático funciona para modalidades que contengan en su nombre:
-- "Presencial"
-- "Semipresencial"
-- "Híbrida"
-- "En Línea"
+- **"Presencial"** - 3 semanas mínimo, 1 recurso por semana
+- **"Semipresencial"** - 3 semanas mínimo, 1 recurso por semana
+- **"Híbrida"** - 3 semanas mínimo, 1 recurso por semana
+- **"En Línea"** - 3 semanas mínimo, 1 recurso por semana
+- **"Distancia"** - 8 semanas mínimo, 3 recursos por semana
+
+Todas las modalidades requieren 1 video por semana y validación de fechas.
 
 Otras modalidades no serán analizadas automáticamente.
 
