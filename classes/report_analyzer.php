@@ -290,9 +290,9 @@ class report_analyzer {
             }
         }
 
-        $semanas_analisis = [];
-        $semana_actual = null;
-        $semana_numero = 0;
+        // Array asociativo para almacenar semanas por número (evita duplicados)
+        $semanas_por_numero = [];
+        $semana_numero_actual = null;
 
         // PASO 4: Procesar cada módulo en el orden correcto de la sección
         foreach ($ordered_modules as $module) {
@@ -307,24 +307,23 @@ class report_analyzer {
                         $label_content = $label->intro . ' ' . $label->name;
                         if (preg_match('/semana\s*(\d+)/i', strip_tags($label_content), $matches)) {
                             $es_etiqueta_semana = true;
+                            $semana_numero_actual = intval($matches[1]);
 
-                            // Guardar análisis de semana anterior si existe
-                            if ($semana_actual !== null) {
-                                $semanas_analisis[] = $semana_actual;
+                            // Si esta semana no existe, crearla
+                            if (!isset($semanas_por_numero[$semana_numero_actual])) {
+                                $semanas_por_numero[$semana_numero_actual] = [
+                                    'semana' => $semana_numero_actual,
+                                    'nombre' => 'Semana ' . $semana_numero_actual,
+                                    'recursos' => [],
+                                    'tiene_video' => false,
+                                    'tiene_recurso' => false,
+                                    'recursos_validos' => 0,
+                                    'recursos_docente_validos' => 0,
+                                    'cumple' => false
+                                ];
                             }
-
-                            // Iniciar nueva semana
-                            $semana_numero = intval($matches[1]);
-                            $semana_actual = [
-                                'semana' => $semana_numero,
-                                'nombre' => 'Semana ' . $semana_numero,
-                                'recursos' => [],
-                                'tiene_video' => false,
-                                'tiene_recurso' => false,
-                                'recursos_validos' => 0,
-                                'recursos_docente_validos' => 0,
-                                'cumple' => false
-                            ];
+                            // Si ya existe, simplemente cambiamos el puntero a esa semana
+                            // Los recursos siguientes se agregarán a la semana existente
                         }
                     }
                 } catch (\Exception $e) {
@@ -334,31 +333,34 @@ class report_analyzer {
             }
 
             // Si hay una semana actual y no es una etiqueta de semana, analizar como recurso
-            if ($semana_actual !== null && !$es_etiqueta_semana) {
+            if ($semana_numero_actual !== null && !$es_etiqueta_semana) {
                 $recurso = self::analyze_module_resource($module, $course_startdate);
                 if ($recurso) {
-                    $semana_actual['recursos'][] = $recurso;
+                    // Agregar recurso a la semana actual
+                    $semanas_por_numero[$semana_numero_actual]['recursos'][] = $recurso;
 
                     // Verificar si es un recurso válido (creado después del inicio del curso)
                     if ($recurso['fecha_valida']) {
-                        $semana_actual['recursos_validos']++;
+                        $semanas_por_numero[$semana_numero_actual]['recursos_validos']++;
 
                         if ($recurso['es_recurso_docente']) {
-                            $semana_actual['tiene_recurso'] = true;
-                            $semana_actual['recursos_docente_validos']++;
+                            $semanas_por_numero[$semana_numero_actual]['tiene_recurso'] = true;
+                            $semanas_por_numero[$semana_numero_actual]['recursos_docente_validos']++;
                         }
 
                         if ($recurso['es_video']) {
-                            $semana_actual['tiene_video'] = true;
+                            $semanas_por_numero[$semana_numero_actual]['tiene_video'] = true;
                         }
                     }
                 }
             }
         }
 
-        // Agregar última semana
-        if ($semana_actual !== null) {
-            $semanas_analisis[] = $semana_actual;
+        // Convertir array asociativo a array indexado y ordenar por número de semana
+        $semanas_analisis = [];
+        ksort($semanas_por_numero); // Ordenar por número de semana
+        foreach ($semanas_por_numero as $semana) {
+            $semanas_analisis[] = $semana;
         }
 
         // Evaluar cumplimiento de cada semana según la modalidad
