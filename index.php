@@ -8,9 +8,9 @@ use local_cumplimiento_docente\report_analyzer;
 // Verificar que el usuario esté autenticado
 require_login();
 
-// Verificar permisos (solo administradores y managers)
+// Verificar permisos
 $context = context_system::instance();
-require_capability('moodle/site:config', $context);
+require_capability('local/cumplimiento_docente:view', $context);
 
 // Configurar la página
 $PAGE->set_url(new moodle_url('/local/cumplimiento_docente/index.php'));

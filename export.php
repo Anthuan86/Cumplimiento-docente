@@ -10,7 +10,7 @@ require_login();
 
 // Verificar permisos
 $context = context_system::instance();
-require_capability('moodle/site:config', $context);
+require_capability('local/cumplimiento_docente:view', $context);
 
 // Procesar filtros
 $modalidad = optional_param('modalidad', 0, PARAM_INT);

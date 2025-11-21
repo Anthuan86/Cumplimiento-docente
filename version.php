@@ -2,7 +2,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_cumplimiento_docente';
-$plugin->version = 2025112100;
+$plugin->version = 2025112101;
 $plugin->requires = 2020061500; // Moodle 3.9
 $plugin->maturity = MATURITY_STABLE;
-$plugin->release = 'v1.0';
+$plugin->release = 'v1.1';
