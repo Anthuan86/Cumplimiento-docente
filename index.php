@@ -214,6 +214,12 @@ echo $OUTPUT->header();
                                             <i class="icon fa fa-chart-bar fa-fw"></i>
                                             Ver Análisis
                                         </a>
+                                        <a href="debug_semanas.php?courseid=<?php echo $curso->id; ?>"
+                                           class="btn btn-sm btn-warning"
+                                           title="Diagnosticar detección de semanas">
+                                            <i class="icon fa fa-bug fa-fw"></i>
+                                            Debug
+                                        </a>
                                         <a href="<?php echo new moodle_url('/course/view.php', ['id' => $curso->id]); ?>"
                                            class="btn btn-sm btn-secondary"
                                            title="Ir al curso"
