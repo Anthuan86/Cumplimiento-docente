@@ -455,18 +455,32 @@ echo $OUTPUT->header();
                                         </div>
                                         <div class="card-body">
                                             <div class="row mb-3">
-                                                <div class="col-md-6">
+                                                <div class="col-md-3">
                                                     <div class="requirement-box p-3 border rounded bg-light">
                                                         <i class="icon fa fa-external-link-alt fa-fw"></i>
                                                         <strong>Tipo:</strong><br>
                                                         <small>Herramienta Externa (LTI)</small>
                                                     </div>
                                                 </div>
-                                                <div class="col-md-6">
+                                                <div class="col-md-3">
                                                     <div class="requirement-box p-3 border rounded <?php echo $herramienta['fecha_valida'] ? 'bg-success-light' : 'bg-danger-light'; ?>">
                                                         <i class="icon fa fa-<?php echo $herramienta['fecha_valida'] ? 'check-circle text-success' : 'times-circle text-danger'; ?> fa-fw"></i>
                                                         <strong>Fecha:</strong><br>
                                                         <small><?php echo $herramienta['fecha_valida'] ? 'Posterior al inicio ✓' : 'Anterior al inicio ✗'; ?></small>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="requirement-box p-3 border rounded <?php echo $herramienta['tiene_actividad'] ? 'bg-info-light' : 'bg-warning-light'; ?>">
+                                                        <i class="icon fa fa-chart-line fa-fw <?php echo $herramienta['tiene_actividad'] ? 'text-info' : 'text-warning'; ?>"></i>
+                                                        <strong>Accesos Totales:</strong><br>
+                                                        <small><?php echo $herramienta['total_accesos']; ?> registro(s) de acceso</small>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="requirement-box p-3 border rounded <?php echo $herramienta['usuarios_unicos'] > 0 ? 'bg-info-light' : 'bg-warning-light'; ?>">
+                                                        <i class="icon fa fa-users fa-fw <?php echo $herramienta['usuarios_unicos'] > 0 ? 'text-info' : 'text-warning'; ?>"></i>
+                                                        <strong>Usuarios Únicos:</strong><br>
+                                                        <small><?php echo $herramienta['usuarios_unicos']; ?> usuario(s)</small>
                                                     </div>
                                                 </div>
                                             </div>

@@ -1591,12 +1591,46 @@ class report_analyzer {
                     }
                     $fecha_valida = $fecha_modificacion > $course_startdate;
 
+                    // Contar registros de acceso en logstore_standard_log
+                    $total_accesos = 0;
+                    $usuarios_unicos = 0;
+
+                    try {
+                        // Consultar logs relacionados con esta herramienta LTI
+                        // Buscamos por component 'mod_lti' y contextinstanceid (course_module id)
+                        $sql_logs = "SELECT COUNT(DISTINCT l.id) as total,
+                                            COUNT(DISTINCT l.userid) as usuarios
+                                     FROM {logstore_standard_log} l
+                                     WHERE l.component = :component
+                                     AND l.contextinstanceid = :moduleid
+                                     AND l.courseid = :courseid
+                                     AND l.action IN ('viewed', 'launched')";
+
+                        $log_stats = $DB->get_record_sql($sql_logs, [
+                            'component' => 'mod_lti',
+                            'moduleid' => $module_id,
+                            'courseid' => $course_id
+                        ]);
+
+                        if ($log_stats) {
+                            $total_accesos = $log_stats->total;
+                            $usuarios_unicos = $log_stats->usuarios;
+                        }
+                    } catch (\Exception $e) {
+                        // Si hay error al consultar logs, continuar sin esa información
+                        $total_accesos = 0;
+                        $usuarios_unicos = 0;
+                    }
+
                     $herramienta_info = [
                         'tipo' => 'lti',
                         'nombre' => $lti->name,
                         'toolurl' => isset($lti->toolurl) ? $lti->toolurl : '',
                         'fecha_modificacion' => $fecha_modificacion,
                         'fecha_valida' => $fecha_valida,
+                        'total_accesos' => $total_accesos,
+                        'usuarios_unicos' => $usuarios_unicos,
+                        'tiene_actividad' => $total_accesos > 0,
                         'es_valido' => $fecha_valida
                     ];
 
