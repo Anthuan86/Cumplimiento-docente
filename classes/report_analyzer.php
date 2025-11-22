@@ -161,6 +161,53 @@ class report_analyzer {
     }
 
     /**
+     * Obtiene la duración del curso desde los campos personalizados
+     * @param int $course_id ID del curso
+     * @return int|null Duración en horas (32 o 48) o null si no está definida
+     */
+    public static function get_course_duration($course_id) {
+        global $DB;
+
+        try {
+            // Buscar el campo personalizado "duracion" o similar
+            $sql = "SELECT cf.id
+                    FROM {customfield_field} cf
+                    WHERE cf.shortname LIKE '%duracion%'
+                    OR cf.shortname LIKE '%duration%'
+                    OR cf.name LIKE '%duración%'
+                    OR cf.name LIKE '%horas%'
+                    LIMIT 1";
+
+            $field = $DB->get_record_sql($sql);
+
+            if (!$field) {
+                return null;
+            }
+
+            // Obtener el valor para este curso
+            $data = $DB->get_record('customfield_data', [
+                'fieldid' => $field->id,
+                'instanceid' => $course_id
+            ]);
+
+            if (!$data) {
+                return null;
+            }
+
+            // El valor es 1 para 32 horas, 2 para 48 horas
+            if ($data->value == 1 || $data->value == '1') {
+                return 32;
+            } else if ($data->value == 2 || $data->value == '2') {
+                return 48;
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
      * Analiza las secciones de un curso por semanas
      *
      * Este método analiza las siguientes secciones:
@@ -206,9 +253,27 @@ class report_analyzer {
             ];
         }
 
+        // Obtener duración del curso (32 o 48 horas)
+        $duracion_curso = self::get_course_duration($course_id);
+
         // Definir requisitos según modalidad
         $minimo_semanas = $es_distancia ? 8 : 3;
         $minimo_recursos_por_semana = $es_distancia ? 3 : 1;
+
+        // Definir requisitos para actividades según modalidad y duración
+        if ($es_distancia) {
+            $minimo_actividades_por_semana = 1;
+        } else {
+            // Presencial, Semipresencial, Híbrida, En Línea
+            if ($duracion_curso == 32) {
+                $minimo_actividades_por_semana = 2;
+            } else if ($duracion_curso == 48) {
+                $minimo_actividades_por_semana = 4;
+            } else {
+                // Si no hay duración definida, usar valor por defecto
+                $minimo_actividades_por_semana = 2;
+            }
+        }
 
         // Analizar sección "Recursos o Material de Apoyo"
         $material_apoyo = self::analyze_section_by_weeks(
@@ -218,12 +283,12 @@ class report_analyzer {
             $minimo_recursos_por_semana
         );
 
-        // Analizar sección "Actividades de Aprendizaje"
-        $actividades_aprendizaje = self::analyze_section_by_weeks(
+        // Analizar sección "Actividades de Aprendizaje" con reglas específicas
+        $actividades_aprendizaje = self::analyze_activities_section(
             $course_id,
             ['Actividades de Aprendizaje', 'Actividades'],
             $course_startdate,
-            $minimo_recursos_por_semana
+            $minimo_actividades_por_semana
         );
 
         // Si ninguna sección fue encontrada, retornar error
@@ -239,6 +304,8 @@ class report_analyzer {
             'es_distancia' => $es_distancia,
             'minimo_semanas' => $minimo_semanas,
             'minimo_recursos_por_semana' => $minimo_recursos_por_semana,
+            'minimo_actividades_por_semana' => $minimo_actividades_por_semana,
+            'duracion_curso' => $duracion_curso,
             'course_startdate' => $course_startdate,
             'modalidad_name' => $modalidad_name,
             'secciones' => [
@@ -473,6 +540,211 @@ class report_analyzer {
             'porcentaje_cumplimiento' => $total_semanas > 0 ? round(($semanas_cumplen / $total_semanas) * 100, 2) : 0,
             'semanas' => $semanas_analisis,
             'debug_log' => $debug_log  // Para debugging temporal
+        ];
+    }
+
+    /**
+     * Analiza la sección de Actividades de Aprendizaje con reglas específicas
+     *
+     * @param int $course_id ID del curso
+     * @param array $section_patterns Patrones para buscar la sección
+     * @param int $course_startdate Fecha de inicio del curso
+     * @param int $minimo_actividades_por_semana Mínimo de actividades requeridas por semana
+     * @return array Análisis de la sección
+     */
+    private static function analyze_activities_section($course_id, $section_patterns, $course_startdate, $minimo_actividades_por_semana) {
+        global $DB;
+
+        // PASO 1: Buscar la sección usando los patrones proporcionados
+        $sql_section = "SELECT id, name, section
+                        FROM {course_sections}
+                        WHERE course = :course_id
+                        AND visible = 1
+                        ORDER BY section ASC";
+
+        $all_sections = $DB->get_records_sql($sql_section, ['course_id' => $course_id]);
+
+        $section_id = null;
+        $section_name = '';
+
+        // Buscar la sección que coincida con alguno de los patrones
+        foreach ($all_sections as $section) {
+            $current_section_name = $section->name ? $section->name : '';
+
+            foreach ($section_patterns as $pattern) {
+                if (stripos($current_section_name, $pattern) !== false) {
+                    $section_id = $section->id;
+                    $section_name = $current_section_name;
+                    break 2;
+                }
+            }
+        }
+
+        // Si no se encuentra la sección, retornar que no fue encontrada
+        if (!$section_id) {
+            return [
+                'encontrada' => false,
+                'nombre' => '',
+                'semanas' => [],
+                'total_semanas' => 0,
+                'semanas_cumplen' => 0,
+                'cumple_minimo' => false,
+                'porcentaje_cumplimiento' => 0
+            ];
+        }
+
+        // PASO 2: Obtener la secuencia de módulos de la sección
+        $section_data = $DB->get_record('course_sections',
+            ['id' => $section_id],
+            'id, sequence'
+        );
+
+        if (!$section_data || empty($section_data->sequence)) {
+            return [
+                'encontrada' => true,
+                'nombre' => $section_name,
+                'semanas' => [],
+                'total_semanas' => 0,
+                'semanas_cumplen' => 0,
+                'cumple_minimo' => false,
+                'porcentaje_cumplimiento' => 0
+            ];
+        }
+
+        // Obtener IDs de módulos en el orden correcto
+        $module_ids = explode(',', $section_data->sequence);
+        $module_ids = array_filter($module_ids);
+
+        if (empty($module_ids)) {
+            return [
+                'encontrada' => true,
+                'nombre' => $section_name,
+                'semanas' => [],
+                'total_semanas' => 0,
+                'semanas_cumplen' => 0,
+                'cumple_minimo' => false,
+                'porcentaje_cumplimiento' => 0
+            ];
+        }
+
+        // PASO 3: Obtener los módulos en el orden de la secuencia
+        list($in_sql, $params) = $DB->get_in_or_equal($module_ids, SQL_PARAMS_NAMED, 'modid');
+        $params['course_id'] = $course_id;
+
+        $sql = "SELECT cm.id, cm.section, cm.module, cm.instance, cm.added as timeadded, cm.completion,
+                       m.name as modname, cs.section as section_number
+                FROM {course_modules} cm
+                INNER JOIN {modules} m ON m.id = cm.module
+                INNER JOIN {course_sections} cs ON cs.id = cm.section
+                WHERE cm.course = :course_id
+                AND cm.id $in_sql
+                AND cm.visible = 1
+                AND cm.deletioninprogress = 0";
+
+        $modules = $DB->get_records_sql($sql, $params);
+
+        // Ordenar módulos según la secuencia de la sección
+        $ordered_modules = [];
+        foreach ($module_ids as $module_id) {
+            if (isset($modules[$module_id])) {
+                $ordered_modules[] = $modules[$module_id];
+            }
+        }
+
+        // Array asociativo para almacenar semanas por número (evita duplicados)
+        $semanas_por_numero = [];
+        $semana_numero_actual = null;
+        $debug_log = [];
+
+        // PASO 4: Procesar cada módulo en el orden correcto de la sección
+        foreach ($ordered_modules as $module) {
+            $es_etiqueta_semana = false;
+
+            // Si es una etiqueta (label), verificar si es una etiqueta de semana
+            if ($module->modname === 'label') {
+                try {
+                    $label = $DB->get_record('label', ['id' => $module->instance], 'intro, name');
+                    if ($label) {
+                        // Buscar "Semana X" en el contenido de la etiqueta
+                        $label_content = $label->intro . ' ' . $label->name;
+                        if (preg_match('/semana\s*(\d+)/i', strip_tags($label_content), $matches)) {
+                            $es_etiqueta_semana = true;
+                            $semana_numero_actual = intval($matches[1]);
+
+                            $ya_existe = isset($semanas_por_numero[$semana_numero_actual]);
+                            $debug_log[] = "Módulo {$module->id}: Detectada etiqueta Semana {$semana_numero_actual}" . ($ya_existe ? ' (YA EXISTE)' : ' (NUEVA)');
+
+                            // Si esta semana no existe, crearla
+                            if (!isset($semanas_por_numero[$semana_numero_actual])) {
+                                $semanas_por_numero[$semana_numero_actual] = [
+                                    'semana' => $semana_numero_actual,
+                                    'nombre' => 'Semana ' . $semana_numero_actual,
+                                    'actividades' => [],
+                                    'total_actividades' => 0,
+                                    'actividades_validas' => 0,
+                                    'cumple' => false
+                                ];
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    continue;
+                }
+            }
+
+            // Si hay una semana actual y no es una etiqueta de semana, analizar como actividad
+            if ($semana_numero_actual !== null && !$es_etiqueta_semana) {
+                $actividad = self::analyze_activity_module($module, $course_startdate);
+                if ($actividad) {
+                    // Agregar actividad a la semana actual
+                    $semanas_por_numero[$semana_numero_actual]['actividades'][] = $actividad;
+                    $semanas_por_numero[$semana_numero_actual]['total_actividades']++;
+
+                    // Contar actividades válidas
+                    if ($actividad['es_actividad_valida']) {
+                        $semanas_por_numero[$semana_numero_actual]['actividades_validas']++;
+                    }
+                }
+            }
+        }
+
+        $debug_log[] = "Array asociativo tiene " . count($semanas_por_numero) . " elementos: " . implode(', ', array_keys($semanas_por_numero));
+
+        // Convertir array asociativo a array indexado y ordenar por número de semana
+        $semanas_analisis = [];
+        ksort($semanas_por_numero);
+        foreach ($semanas_por_numero as $num_semana => $semana) {
+            $debug_log[] = "Agregando al array final: Semana {$num_semana}";
+            $semanas_analisis[] = $semana;
+        }
+
+        $debug_log[] = "Array final tiene " . count($semanas_analisis) . " elementos";
+
+        // Evaluar cumplimiento de cada semana
+        foreach ($semanas_analisis as &$semana) {
+            $semana['cumple'] = $semana['actividades_validas'] >= $minimo_actividades_por_semana;
+        }
+        unset($semana);
+
+        $total_semanas = count($semanas_analisis);
+        $semanas_cumplen = 0;
+        foreach ($semanas_analisis as $semana) {
+            if ($semana['cumple']) {
+                $semanas_cumplen++;
+            }
+        }
+
+        $numeros_finales = array_map(function($s) { return $s['semana']; }, $semanas_analisis);
+        $debug_log[] = "Números después de evaluación: " . implode(', ', $numeros_finales);
+
+        return [
+            'encontrada' => true,
+            'nombre' => $section_name,
+            'total_semanas' => $total_semanas,
+            'semanas_cumplen' => $semanas_cumplen,
+            'porcentaje_cumplimiento' => $total_semanas > 0 ? round(($semanas_cumplen / $total_semanas) * 100, 2) : 0,
+            'semanas' => $semanas_analisis,
+            'debug_log' => $debug_log
         ];
     }
 
@@ -862,6 +1134,123 @@ class report_analyzer {
         }
 
         return $es_video;
+    }
+
+    /**
+     * Analiza un módulo como actividad de aprendizaje
+     * Valida: nombre, tipo, interacciones y condiciones de finalización
+     *
+     * @param object $module Objeto del módulo
+     * @param int $course_startdate Fecha de inicio del curso
+     * @return array|null Información de la actividad o null si no es válida
+     */
+    private static function analyze_activity_module($module, $course_startdate) {
+        global $DB;
+
+        // Tipos de módulos que consideramos como actividades
+        $tipos_actividades = ['assign', 'workshop', 'hvp', 'forum', 'quiz', 'survey', 'lesson', 'choice', 'feedback'];
+
+        // Si no es un tipo de actividad, retornar null
+        if (!in_array($module->modname, $tipos_actividades)) {
+            return null;
+        }
+
+        try {
+            // Obtener detalles de la actividad
+            $instancia = $DB->get_record($module->modname, ['id' => $module->instance]);
+
+            if (!$instancia) {
+                return null;
+            }
+
+            $nombre = isset($instancia->name) ? $instancia->name : '';
+            $fecha_modificacion = $module->timeadded;
+
+            if (isset($instancia->timemodified)) {
+                $fecha_modificacion = $instancia->timemodified;
+            }
+
+            // Validar nombre: debe contener "Actividad" seguido de número
+            $cumple_nombre = preg_match('/actividad\s*\(?(\d+)\)?/i', $nombre);
+
+            // Validar que tenga condiciones de finalización configuradas
+            // completion: 0 = sin seguimiento, 1 = manual, 2 = automático
+            $tiene_completion = isset($module->completion) && $module->completion > 0;
+
+            // Validar que esté después de la fecha de inicio del curso
+            $fecha_valida = $fecha_modificacion > $course_startdate;
+
+            // Verificar interacciones (simplificado)
+            $tiene_interacciones = self::check_activity_has_interactions($module, $instancia);
+
+            // La actividad es válida si cumple TODOS los criterios
+            $es_actividad_valida = $cumple_nombre && $tiene_completion && $fecha_valida;
+
+            return [
+                'id' => $module->id,
+                'tipo' => $module->modname,
+                'nombre' => $nombre,
+                'cumple_nombre' => $cumple_nombre,
+                'tiene_completion' => $tiene_completion,
+                'tiene_interacciones' => $tiene_interacciones,
+                'fecha_modificacion' => $fecha_modificacion,
+                'fecha_valida' => $fecha_valida,
+                'es_actividad_valida' => $es_actividad_valida
+            ];
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Verifica si una actividad tiene interacciones de estudiantes
+     *
+     * @param object $module Objeto del módulo
+     * @param object $instancia Instancia de la actividad
+     * @return bool True si tiene interacciones
+     */
+    private static function check_activity_has_interactions($module, $instancia) {
+        global $DB;
+
+        try {
+            // Verificar según el tipo de actividad
+            switch ($module->modname) {
+                case 'assign': // Tareas
+                    $count = $DB->count_records('assign_submission', ['assignment' => $instancia->id]);
+                    return $count > 0;
+
+                case 'forum': // Foros
+                    $discussions = $DB->get_records('forum_discussions', ['forum' => $instancia->id]);
+                    return count($discussions) > 0;
+
+                case 'quiz': // Cuestionarios
+                    $count = $DB->count_records('quiz_attempts', ['quiz' => $instancia->id]);
+                    return $count > 0;
+
+                case 'workshop': // Talleres
+                    $count = $DB->count_records('workshop_submissions', ['workshopid' => $instancia->id]);
+                    return $count > 0;
+
+                case 'lesson': // Lecciones
+                    $count = $DB->count_records('lesson_attempts', ['lessonid' => $instancia->id]);
+                    return $count > 0;
+
+                case 'choice': // Consultas
+                    $count = $DB->count_records('choice_answers', ['choiceid' => $instancia->id]);
+                    return $count > 0;
+
+                case 'feedback': // Retroalimentación
+                    $count = $DB->count_records('feedback_completed', ['feedback' => $instancia->id]);
+                    return $count > 0;
+
+                default:
+                    // Para otros tipos, asumimos que tienen interacciones si están configurados
+                    return true;
+            }
+        } catch (\Exception $e) {
+            // Si hay error, no podemos confirmar interacciones
+            return false;
+        }
     }
 
     /**
