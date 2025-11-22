@@ -214,93 +214,187 @@ echo $OUTPUT->header();
                             </div>
                             <div class="card-body">
                                 <!-- Indicadores de cumplimiento -->
-                                <div class="row mb-3">
-                                    <div class="col-md-4">
-                                        <?php
-                                        $cumple_recursos = $semana['recursos_docente_validos'] >= $analisis['minimo_recursos_por_semana'];
-                                        ?>
-                                        <div class="requirement-box p-3 border rounded <?php echo $cumple_recursos ? 'bg-success-light' : 'bg-danger-light'; ?>">
-                                            <i class="icon fa fa-<?php echo $cumple_recursos ? 'check-circle text-success' : 'times-circle text-danger'; ?> fa-fw"></i>
-                                            <strong>Recursos del Docente:</strong><br>
-                                            <small>
-                                                <?php echo $semana['recursos_docente_validos']; ?> de <?php echo $analisis['minimo_recursos_por_semana']; ?> requerido(s)
-                                                <?php echo $cumple_recursos ? '✓' : '✗'; ?>
-                                            </small>
+                                <?php if ($seccion_key === 'material_apoyo'): ?>
+                                    <!-- Indicadores para Material de Apoyo -->
+                                    <div class="row mb-3">
+                                        <div class="col-md-4">
+                                            <?php
+                                            $cumple_recursos = $semana['recursos_docente_validos'] >= $analisis['minimo_recursos_por_semana'];
+                                            ?>
+                                            <div class="requirement-box p-3 border rounded <?php echo $cumple_recursos ? 'bg-success-light' : 'bg-danger-light'; ?>">
+                                                <i class="icon fa fa-<?php echo $cumple_recursos ? 'check-circle text-success' : 'times-circle text-danger'; ?> fa-fw"></i>
+                                                <strong>Recursos del Docente:</strong><br>
+                                                <small>
+                                                    <?php echo $semana['recursos_docente_validos']; ?> de <?php echo $analisis['minimo_recursos_por_semana']; ?> requerido(s)
+                                                    <?php echo $cumple_recursos ? '✓' : '✗'; ?>
+                                                </small>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="requirement-box p-3 border rounded <?php echo $semana['tiene_video'] ? 'bg-success-light' : 'bg-danger-light'; ?>">
-                                            <i class="icon fa fa-<?php echo $semana['tiene_video'] ? 'check-circle text-success' : 'times-circle text-danger'; ?> fa-fw"></i>
-                                            <strong>Video:</strong><br>
-                                            <small><?php echo $semana['tiene_video'] ? 'Sí tiene ✓' : 'No tiene ✗'; ?></small>
+                                        <div class="col-md-4">
+                                            <div class="requirement-box p-3 border rounded <?php echo $semana['tiene_video'] ? 'bg-success-light' : 'bg-danger-light'; ?>">
+                                                <i class="icon fa fa-<?php echo $semana['tiene_video'] ? 'check-circle text-success' : 'times-circle text-danger'; ?> fa-fw"></i>
+                                                <strong>Video:</strong><br>
+                                                <small><?php echo $semana['tiene_video'] ? 'Sí tiene ✓' : 'No tiene ✗'; ?></small>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="requirement-box p-3 border rounded bg-info-light">
-                                            <i class="icon fa fa-list fa-fw text-info"></i>
-                                            <strong>Total Recursos Válidos:</strong><br>
-                                            <small><?php echo $semana['recursos_validos']; ?> recurso(s)</small>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Lista de recursos -->
-                                <?php if (!empty($semana['recursos'])): ?>
-                                    <div class="recursos-list">
-                                        <button class="btn btn-sm btn-outline-secondary" type="button"
-                                            data-toggle="collapse"
-                                            data-target="#<?php echo $collapse_id; ?>">
-                                            <i class="icon fa fa-chevron-down fa-fw"></i>
-                                            Ver detalles de recursos (<?php echo count($semana['recursos']); ?>)
-                                        </button>
-                                        <div class="collapse mt-3" id="<?php echo $collapse_id; ?>">
-                                            <table class="table table-sm table-bordered table-hover">
-                                                <thead class="thead-light">
-                                                    <tr>
-                                                        <th>Tipo</th>
-                                                        <th>Nombre</th>
-                                                        <th>Es Recurso Docente</th>
-                                                        <th>Es Video</th>
-                                                        <th>Fecha Modificación</th>
-                                                        <th>Estado</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <?php foreach ($semana['recursos'] as $recurso): ?>
-                                                        <tr class="<?php echo $recurso['fecha_valida'] ? '' : 'table-warning'; ?>">
-                                                            <td>
-                                                                <span class="badge badge-secondary">
-                                                                    <?php echo $recurso['tipo']; ?>
-                                                                </span>
-                                                            </td>
-                                                            <td><?php echo format_string($recurso['nombre']); ?></td>
-                                                            <td class="text-center">
-                                                                <?php echo $recurso['es_recurso_docente'] ? '<i class="icon fa fa-check text-success"></i>' : ''; ?>
-                                                            </td>
-                                                            <td class="text-center">
-                                                                <?php echo $recurso['es_video'] ? '<i class="icon fa fa-video text-primary"></i>' : ''; ?>
-                                                            </td>
-                                                            <td>
-                                                                <small><?php echo userdate($recurso['fecha_modificacion'], '%d/%m/%Y %H:%M'); ?></small>
-                                                            </td>
-                                                            <td>
-                                                                <?php if ($recurso['fecha_valida']): ?>
-                                                                    <span class="badge badge-success">Válido</span>
-                                                                <?php else: ?>
-                                                                    <span class="badge badge-warning">Anterior al inicio</span>
-                                                                <?php endif; ?>
-                                                            </td>
-                                                        </tr>
-                                                    <?php endforeach; ?>
-                                                </tbody>
-                                            </table>
+                                        <div class="col-md-4">
+                                            <div class="requirement-box p-3 border rounded bg-info-light">
+                                                <i class="icon fa fa-list fa-fw text-info"></i>
+                                                <strong>Total Recursos Válidos:</strong><br>
+                                                <small><?php echo $semana['recursos_validos']; ?> recurso(s)</small>
+                                            </div>
                                         </div>
                                     </div>
                                 <?php else: ?>
-                                    <div class="alert alert-warning mb-0">
-                                        <i class="icon fa fa-exclamation-triangle fa-fw"></i>
-                                        No se encontraron recursos en esta semana.
+                                    <!-- Indicadores para Actividades de Aprendizaje -->
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <?php
+                                            $minimo_req = isset($analisis['minimo_actividades_por_semana']) ? $analisis['minimo_actividades_por_semana'] : 2;
+                                            $cumple_actividades = $semana['actividades_validas'] >= $minimo_req;
+                                            ?>
+                                            <div class="requirement-box p-3 border rounded <?php echo $cumple_actividades ? 'bg-success-light' : 'bg-danger-light'; ?>">
+                                                <i class="icon fa fa-<?php echo $cumple_actividades ? 'check-circle text-success' : 'times-circle text-danger'; ?> fa-fw"></i>
+                                                <strong>Actividades Válidas:</strong><br>
+                                                <small>
+                                                    <?php echo $semana['actividades_validas']; ?> de <?php echo $minimo_req; ?> requerida(s)
+                                                    <?php echo $cumple_actividades ? '✓' : '✗'; ?>
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="requirement-box p-3 border rounded bg-info-light">
+                                                <i class="icon fa fa-tasks fa-fw text-info"></i>
+                                                <strong>Total Actividades:</strong><br>
+                                                <small><?php echo $semana['total_actividades']; ?> actividad(es)</small>
+                                            </div>
+                                        </div>
                                     </div>
+                                <?php endif; ?>
+
+                                <!-- Lista de recursos o actividades según la sección -->
+                                <?php if ($seccion_key === 'material_apoyo'): ?>
+                                    <!-- Tabla de Recursos -->
+                                    <?php if (!empty($semana['recursos'])): ?>
+                                        <div class="recursos-list">
+                                            <button class="btn btn-sm btn-outline-secondary" type="button"
+                                                data-toggle="collapse"
+                                                data-target="#<?php echo $collapse_id; ?>">
+                                                <i class="icon fa fa-chevron-down fa-fw"></i>
+                                                Ver detalles de recursos (<?php echo count($semana['recursos']); ?>)
+                                            </button>
+                                            <div class="collapse mt-3" id="<?php echo $collapse_id; ?>">
+                                                <table class="table table-sm table-bordered table-hover">
+                                                    <thead class="thead-light">
+                                                        <tr>
+                                                            <th>Tipo</th>
+                                                            <th>Nombre</th>
+                                                            <th>Es Recurso Docente</th>
+                                                            <th>Es Video</th>
+                                                            <th>Fecha Modificación</th>
+                                                            <th>Estado</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <?php foreach ($semana['recursos'] as $recurso): ?>
+                                                            <tr class="<?php echo $recurso['fecha_valida'] ? '' : 'table-warning'; ?>">
+                                                                <td>
+                                                                    <span class="badge badge-secondary">
+                                                                        <?php echo $recurso['tipo']; ?>
+                                                                    </span>
+                                                                </td>
+                                                                <td><?php echo format_string($recurso['nombre']); ?></td>
+                                                                <td class="text-center">
+                                                                    <?php echo $recurso['es_recurso_docente'] ? '<i class="icon fa fa-check text-success"></i>' : ''; ?>
+                                                                </td>
+                                                                <td class="text-center">
+                                                                    <?php echo $recurso['es_video'] ? '<i class="icon fa fa-video text-primary"></i>' : ''; ?>
+                                                                </td>
+                                                                <td>
+                                                                    <small><?php echo userdate($recurso['fecha_modificacion'], '%d/%m/%Y %H:%M'); ?></small>
+                                                                </td>
+                                                                <td>
+                                                                    <?php if ($recurso['fecha_valida']): ?>
+                                                                        <span class="badge badge-success">Válido</span>
+                                                                    <?php else: ?>
+                                                                        <span class="badge badge-warning">Anterior al inicio</span>
+                                                                    <?php endif; ?>
+                                                                </td>
+                                                            </tr>
+                                                        <?php endforeach; ?>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="alert alert-warning mb-0">
+                                            <i class="icon fa fa-exclamation-triangle fa-fw"></i>
+                                            No se encontraron recursos en esta semana.
+                                        </div>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <!-- Tabla de Actividades -->
+                                    <?php if (!empty($semana['actividades'])): ?>
+                                        <div class="actividades-list">
+                                            <button class="btn btn-sm btn-outline-secondary" type="button"
+                                                data-toggle="collapse"
+                                                data-target="#<?php echo $collapse_id; ?>">
+                                                <i class="icon fa fa-chevron-down fa-fw"></i>
+                                                Ver detalles de actividades (<?php echo count($semana['actividades']); ?>)
+                                            </button>
+                                            <div class="collapse mt-3" id="<?php echo $collapse_id; ?>">
+                                                <table class="table table-sm table-bordered table-hover">
+                                                    <thead class="thead-light">
+                                                        <tr>
+                                                            <th>Tipo</th>
+                                                            <th>Nombre</th>
+                                                            <th>Cumple Nombre</th>
+                                                            <th>Tiene Completion</th>
+                                                            <th>Tiene Interacciones</th>
+                                                            <th>Fecha Válida</th>
+                                                            <th>Estado</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <?php foreach ($semana['actividades'] as $actividad): ?>
+                                                            <tr class="<?php echo $actividad['es_actividad_valida'] ? '' : 'table-warning'; ?>">
+                                                                <td>
+                                                                    <span class="badge badge-primary">
+                                                                        <?php echo $actividad['tipo']; ?>
+                                                                    </span>
+                                                                </td>
+                                                                <td><?php echo format_string($actividad['nombre']); ?></td>
+                                                                <td class="text-center">
+                                                                    <?php echo $actividad['cumple_nombre'] ? '<i class="icon fa fa-check text-success"></i>' : '<i class="icon fa fa-times text-danger"></i>'; ?>
+                                                                </td>
+                                                                <td class="text-center">
+                                                                    <?php echo $actividad['tiene_completion'] ? '<i class="icon fa fa-check text-success"></i>' : '<i class="icon fa fa-times text-danger"></i>'; ?>
+                                                                </td>
+                                                                <td class="text-center">
+                                                                    <?php echo $actividad['tiene_interacciones'] ? '<i class="icon fa fa-check text-success"></i>' : '<i class="icon fa fa-exclamation text-warning"></i>'; ?>
+                                                                </td>
+                                                                <td class="text-center">
+                                                                    <?php echo $actividad['fecha_valida'] ? '<i class="icon fa fa-check text-success"></i>' : '<i class="icon fa fa-times text-danger"></i>'; ?>
+                                                                </td>
+                                                                <td>
+                                                                    <?php if ($actividad['es_actividad_valida']): ?>
+                                                                        <span class="badge badge-success">Válida</span>
+                                                                    <?php else: ?>
+                                                                        <span class="badge badge-warning">No válida</span>
+                                                                    <?php endif; ?>
+                                                                </td>
+                                                            </tr>
+                                                        <?php endforeach; ?>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="alert alert-warning mb-0">
+                                            <i class="icon fa fa-exclamation-triangle fa-fw"></i>
+                                            No se encontraron actividades en esta semana.
+                                        </div>
+                                    <?php endif; ?>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -312,11 +406,30 @@ echo $OUTPUT->header();
 
             <!-- Nota informativa -->
             <div class="alert alert-info mt-4">
-                <h6><i class="icon fa fa-info-circle fa-fw"></i> Criterios de Evaluación para Modalidad: <strong><?php echo $modalidad_name; ?></strong></h6>
-                <ul class="mb-0">
+                <h6><i class="icon fa fa-info-circle fa-fw"></i> Criterios de Evaluación para Modalidad: <strong><?php echo $modalidad_name; ?></strong>
+                <?php if (isset($analisis['duracion_curso']) && $analisis['duracion_curso']): ?>
+                    <span class="badge badge-info ml-2"><?php echo $analisis['duracion_curso']; ?> horas</span>
+                <?php endif; ?>
+                </h6>
+
+                <p><strong>Sección: Recursos o Material de Apoyo</strong></p>
+                <ul>
                     <li>Cada semana debe tener al menos <strong><?php echo $analisis['minimo_recursos_por_semana']; ?> recurso(s)</strong> generado por el docente (página, archivo, etiqueta, libro, carpeta, URL)</li>
                     <li>Cada semana debe incluir al menos <strong>1 video</strong> (archivo de video, URL de YouTube/Vimeo, o video embebido)</li>
                     <li>Todos los recursos deben haber sido editados <strong>después de la fecha de inicio del curso</strong> (<?php echo userdate($analisis['course_startdate'], '%d/%m/%Y'); ?>)</li>
+                </ul>
+
+                <p><strong>Sección: Actividades de Aprendizaje</strong></p>
+                <ul>
+                    <li>Cada semana debe tener al menos <strong><?php echo isset($analisis['minimo_actividades_por_semana']) ? $analisis['minimo_actividades_por_semana'] : 2; ?> actividad(es)</strong> válida(s)</li>
+                    <li>Nombre debe contener "Actividad" seguido de número (ej: "Actividad 1: Título")</li>
+                    <li>Tipos válidos: Tarea, Taller, H5P, Foro, Cuestionario, Encuesta, Lección</li>
+                    <li>Debe tener <strong>condiciones de finalización configuradas</strong></li>
+                    <li>Debe estar editada <strong>después de la fecha de inicio del curso</strong></li>
+                </ul>
+
+                <p><strong>Requisitos generales:</strong></p>
+                <ul class="mb-0">
                     <li>La modalidad requiere un mínimo de <strong><?php echo $analisis['minimo_semanas']; ?> semanas</strong> en cada sección
                         <?php if ($analisis['es_distancia']): ?>
                             <span class="badge badge-warning">Modalidad Distancia</span>
