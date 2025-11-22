@@ -1304,8 +1304,11 @@ class report_analyzer {
         // Verificar intentos configurados (debe ser > 0)
         $tiene_intentos = isset($quiz->attempts) && $quiz->attempts > 0;
 
-        // Verificar fecha de modificación
-        $fecha_modificacion = isset($module->added) ? $module->added : 0;
+        // Verificar fecha de modificación (usar timemodified del quiz, o added del módulo como respaldo)
+        $fecha_modificacion = isset($quiz->timemodified) ? $quiz->timemodified : 0;
+        if ($fecha_modificacion == 0 && isset($module->added)) {
+            $fecha_modificacion = $module->added;
+        }
         $fecha_valida = $fecha_modificacion > $course_startdate;
 
         $es_valido = $nombre_valido && $cumple_preguntas && $tiene_intentos && $fecha_valida;
@@ -1401,7 +1404,7 @@ class report_analyzer {
         if ($es_distancia) {
             $actividades_esperadas = [
                 'quiz' => 'Evaluación Final',
-                'assign' => ['Caso de Estudio']
+                'assign' => ['Caso Práctico']
             ];
         } else {
             // Presencial, Semipresencial, Híbrida, En Línea

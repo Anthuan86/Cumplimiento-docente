@@ -655,13 +655,13 @@ echo $OUTPUT->header();
                     <?php if ($analisis['es_distancia']): ?>
                         <li>Debe tener <strong>al menos UNA</strong> de las siguientes actividades:</li>
                         <ul>
-                            <li><strong>Evaluación Final</strong> (Cuestionario): mínimo 30 preguntas, intentos configurados</li>
-                            <li><strong>Caso de Estudio</strong> (Tarea): con entregas habilitadas</li>
+                            <li><strong>Evaluación Final</strong> (Cuestionario): mínimo 30 preguntas de opción múltiple, intentos configurados</li>
+                            <li><strong>Caso Práctico</strong> (Tarea): con entregas habilitadas</li>
                         </ul>
                     <?php else: ?>
                         <li>Debe tener <strong>al menos UNA</strong> de las siguientes actividades:</li>
                         <ul>
-                            <li><strong>Evaluación Final</strong> (Cuestionario): mínimo 30 preguntas, intentos configurados</li>
+                            <li><strong>Evaluación Final</strong> (Cuestionario): mínimo 30 preguntas de opción múltiple, intentos configurados</li>
                             <li><strong>Caso de Estudio</strong> (Tarea): con entregas habilitadas</li>
                             <li><strong>Portafolio del Estudiante</strong> (Tarea): con entregas habilitadas</li>
                             <li><strong>Actividad Autoinstruccional</strong> (Tarea): con entregas habilitadas</li>
