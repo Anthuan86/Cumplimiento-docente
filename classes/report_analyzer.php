@@ -361,11 +361,22 @@ class report_analyzer {
         $section_name = '';
 
         // Buscar la sección que coincida con alguno de los patrones
+        // Usando mb_strtolower y mb_strpos para mejor manejo de UTF-8 y acentos
         foreach ($all_sections as $section) {
             $current_section_name = $section->name ? $section->name : '';
 
+            if (empty($current_section_name)) {
+                continue;
+            }
+
+            // Normalizar nombre de sección
+            $section_name_normalized = mb_strtolower($current_section_name, 'UTF-8');
+
             foreach ($section_patterns as $pattern) {
-                if (stripos($current_section_name, $pattern) !== false) {
+                // Normalizar patrón
+                $pattern_normalized = mb_strtolower($pattern, 'UTF-8');
+
+                if (mb_strpos($section_name_normalized, $pattern_normalized, 0, 'UTF-8') !== false) {
                     $section_id = $section->id;
                     $section_name = $current_section_name;
                     break 2; // Salir de ambos foreach
@@ -589,11 +600,22 @@ class report_analyzer {
         $section_name = '';
 
         // Buscar la sección que coincida con alguno de los patrones
+        // Usando mb_strtolower y mb_strpos para mejor manejo de UTF-8 y acentos
         foreach ($all_sections as $section) {
             $current_section_name = $section->name ? $section->name : '';
 
+            if (empty($current_section_name)) {
+                continue;
+            }
+
+            // Normalizar nombre de sección
+            $section_name_normalized = mb_strtolower($current_section_name, 'UTF-8');
+
             foreach ($section_patterns as $pattern) {
-                if (stripos($current_section_name, $pattern) !== false) {
+                // Normalizar patrón
+                $pattern_normalized = mb_strtolower($pattern, 'UTF-8');
+
+                if (mb_strpos($section_name_normalized, $pattern_normalized, 0, 'UTF-8') !== false) {
                     $section_id = $section->id;
                     $section_name = $current_section_name;
                     break 2;
@@ -1381,12 +1403,24 @@ class report_analyzer {
     private static function analyze_final_activities_section($course_id, $section_patterns, $course_startdate, $es_distancia) {
         global $DB;
 
-        // Buscar la sección
+        // Buscar la sección con búsqueda más robusta para manejar acentos y mayúsculas
         $section = null;
-        foreach ($section_patterns as $pattern) {
-            $sections = $DB->get_records('course_sections', ['course' => $course_id]);
-            foreach ($sections as $sec) {
-                if (stripos($sec->name, $pattern) !== false) {
+        $sections = $DB->get_records('course_sections', ['course' => $course_id]);
+
+        foreach ($sections as $sec) {
+            if (empty($sec->name)) {
+                continue;
+            }
+
+            // Normalizar el nombre de la sección para comparación
+            $section_name_normalized = mb_strtolower($sec->name, 'UTF-8');
+
+            foreach ($section_patterns as $pattern) {
+                // Normalizar el patrón también
+                $pattern_normalized = mb_strtolower($pattern, 'UTF-8');
+
+                // Buscar con mb_strpos para mejor manejo de UTF-8
+                if (mb_strpos($section_name_normalized, $pattern_normalized, 0, 'UTF-8') !== false) {
                     $section = $sec;
                     break 2;
                 }
