@@ -197,7 +197,12 @@ echo $OUTPUT->header();
                                 No se encontraron semanas en esta sección. Asegúrate de que la sección tenga etiquetas con "Semana 1", "Semana 2", etc.
                             </div>
                         <?php else: ?>
-                            <?php foreach ($seccion['semanas'] as $semana): ?>
+                            <?php
+                            $semana_index = 0;
+                            foreach ($seccion['semanas'] as $semana):
+                                $semana_index++;
+                                $collapse_id = "recursos-{$seccion_key}-semana-{$semana_index}";
+                            ?>
                         <div class="week-item card mb-3 <?php echo $semana['cumple'] ? 'border-success' : 'border-danger'; ?>">
                             <div class="card-header <?php echo $semana['cumple'] ? 'bg-success text-white' : 'bg-danger text-white'; ?>">
                                 <div class="d-flex justify-content-between align-items-center">
@@ -244,11 +249,11 @@ echo $OUTPUT->header();
                                     <div class="recursos-list">
                                         <button class="btn btn-sm btn-outline-secondary" type="button"
                                             data-toggle="collapse"
-                                            data-target="#recursos-semana-<?php echo $semana['semana']; ?>">
+                                            data-target="#<?php echo $collapse_id; ?>">
                                             <i class="icon fa fa-chevron-down fa-fw"></i>
                                             Ver detalles de recursos (<?php echo count($semana['recursos']); ?>)
                                         </button>
-                                        <div class="collapse mt-3" id="recursos-semana-<?php echo $semana['semana']; ?>">
+                                        <div class="collapse mt-3" id="<?php echo $collapse_id; ?>">
                                             <table class="table table-sm table-bordered table-hover">
                                                 <thead class="thead-light">
                                                     <tr>
