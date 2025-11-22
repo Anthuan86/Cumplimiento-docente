@@ -25,6 +25,17 @@ $modalidad_name = $modalidad ? $modalidad->modalidad_name : 'Sin modalidad';
 // Obtener el análisis del curso
 $analisis = report_analyzer::analyze_course_resources($courseid, $modalidad_name);
 
+// Obtener el nombre del docente (profesor del curso)
+$coursecontext = context_course::instance($courseid);
+$teachers = get_enrolled_users($coursecontext, 'mod/assignment:grade', 0, 'u.id, u.firstname, u.lastname, u.email', 'u.lastname ASC', 0, 1);
+$teacher_name = 'No asignado';
+$teacher_email = '';
+if (!empty($teachers)) {
+    $teacher = reset($teachers);
+    $teacher_name = format_string($teacher->firstname . ' ' . $teacher->lastname);
+    $teacher_email = $teacher->email;
+}
+
 // Incluir la librería PHPSpreadsheet de Moodle
 require_once($CFG->dirroot . '/lib/phpspreadsheet/vendor/autoload.php');
 
@@ -79,6 +90,20 @@ $sheet->setCellValue('A' . $row, 'Código del Curso:');
 $sheet->setCellValue('B' . $row, $course->shortname);
 $sheet->getStyle('A' . $row)->getFont()->setBold(true);
 $row++;
+
+$sheet->setCellValue('A' . $row, 'Docente:');
+$sheet->setCellValue('B' . $row, $teacher_name);
+$sheet->getStyle('A' . $row)->getFont()->setBold(true);
+$sheet->mergeCells('B' . $row . ':F' . $row);
+$row++;
+
+if ($teacher_email) {
+    $sheet->setCellValue('A' . $row, 'Email del Docente:');
+    $sheet->setCellValue('B' . $row, $teacher_email);
+    $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+    $sheet->mergeCells('B' . $row . ':F' . $row);
+    $row++;
+}
 
 $sheet->setCellValue('A' . $row, 'Modalidad:');
 $sheet->setCellValue('B' . $row, $modalidad_name);
@@ -382,6 +407,251 @@ if ($analisis['requiere_analisis']) {
         $detailSheet->getColumnDimension('C')->setWidth(20);
         $detailSheet->getColumnDimension('D')->setWidth(20);
         $detailSheet->getColumnDimension('E')->setWidth(15);
+    }
+
+    // Hoja para Actividades Finales
+    if ($actividades_finales['encontrada']) {
+        $sheet_index++;
+        $detailSheet = $spreadsheet->createSheet($sheet_index);
+        $detailSheet->setTitle('Activ. Finales');
+
+        $row = 1;
+        $detailSheet->setCellValue('A' . $row, 'DETALLE: ACTIVIDADES FINALES');
+        $detailSheet->mergeCells('A' . $row . ':F' . $row);
+        $detailSheet->getStyle('A' . $row)->getFont()->setBold(true)->setSize(14);
+        $detailSheet->getStyle('A' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF4472C4');
+        $detailSheet->getStyle('A' . $row)->getFont()->getColor()->setARGB(Color::COLOR_WHITE);
+        $detailSheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $row += 2;
+
+        // Estado general
+        $detailSheet->setCellValue('A' . $row, 'Estado de Cumplimiento:');
+        $detailSheet->setCellValue('B' . $row, $actividades_finales['cumple'] ? 'CUMPLE' : 'NO CUMPLE');
+        $detailSheet->getStyle('A' . $row)->getFont()->setBold(true);
+        $detailSheet->getStyle('B' . $row)->getFont()->setBold(true);
+        $color = $actividades_finales['cumple'] ? 'FF92D050' : 'FFFFC7CE';
+        $detailSheet->getStyle('B' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($color);
+        $row += 2;
+
+        // Información de modalidad
+        $detailSheet->setCellValue('A' . $row, 'Modalidad:');
+        $detailSheet->setCellValue('B' . $row, $modalidad_name);
+        $detailSheet->getStyle('A' . $row)->getFont()->setBold(true);
+        $row++;
+
+        $detailSheet->setCellValue('A' . $row, 'Mensaje:');
+        $detailSheet->setCellValue('B' . $row, $actividades_finales['mensaje']);
+        $detailSheet->getStyle('A' . $row)->getFont()->setBold(true);
+        $detailSheet->mergeCells('B' . $row . ':F' . $row);
+        $detailSheet->getStyle('B' . $row)->getAlignment()->setWrapText(true);
+        $row += 2;
+
+        // Actividades encontradas
+        if (!empty($actividades_finales['actividades'])) {
+            $detailSheet->setCellValue('A' . $row, 'ACTIVIDADES ENCONTRADAS');
+            $detailSheet->mergeCells('A' . $row . ':F' . $row);
+            $detailSheet->getStyle('A' . $row)->getFont()->setBold(true);
+            $detailSheet->getStyle('A' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFD9E1F2');
+            $row++;
+
+            foreach ($actividades_finales['actividades'] as $actividad) {
+                $detailSheet->setCellValue('A' . $row, 'Tipo:');
+                $detailSheet->setCellValue('B' . $row, ucfirst($actividad['tipo']));
+                $detailSheet->getStyle('A' . $row)->getFont()->setBold(true);
+                $row++;
+
+                $detailSheet->setCellValue('A' . $row, 'Nombre:');
+                $detailSheet->setCellValue('B' . $row, $actividad['nombre']);
+                $detailSheet->mergeCells('B' . $row . ':F' . $row);
+                $row++;
+
+                $detailSheet->setCellValue('A' . $row, 'Fecha de Edición:');
+                $detailSheet->setCellValue('B' . $row, userdate($actividad['fecha'], '%d/%m/%Y %H:%M'));
+                $row++;
+
+                if ($actividad['tipo'] === 'quiz') {
+                    $detailSheet->setCellValue('A' . $row, 'Total de Preguntas:');
+                    $detailSheet->setCellValue('B' . $row, $actividad['detalles']['total_preguntas']);
+                    $cumple_preguntas = $actividad['detalles']['cumple_preguntas'];
+                    $detailSheet->setCellValue('C' . $row, $cumple_preguntas ? '✓ Cumple (≥30)' : '✗ No cumple (<30)');
+                    $color = $cumple_preguntas ? 'FF92D050' : 'FFFFC7CE';
+                    $detailSheet->getStyle('C' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($color);
+                    $row++;
+
+                    $detailSheet->setCellValue('A' . $row, 'Nombre Válido:');
+                    $nombre_valido = $actividad['detalles']['nombre_valido'];
+                    $detailSheet->setCellValue('B' . $row, $nombre_valido ? 'Sí' : 'No');
+                    $color = $nombre_valido ? 'FF92D050' : 'FFFFC7CE';
+                    $detailSheet->getStyle('B' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($color);
+                    $row++;
+
+                    $detailSheet->setCellValue('A' . $row, 'Tiene Intentos:');
+                    $tiene_intentos = $actividad['detalles']['tiene_intentos'];
+                    $detailSheet->setCellValue('B' . $row, $tiene_intentos ? 'Sí' : 'No');
+                    $color = $tiene_intentos ? 'FF92D050' : 'FFFFC7CE';
+                    $detailSheet->getStyle('B' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($color);
+                    $row++;
+                } else if ($actividad['tipo'] === 'assign') {
+                    $detailSheet->setCellValue('A' . $row, 'Nombre Esperado:');
+                    $detailSheet->setCellValue('B' . $row, $actividad['detalles']['nombre_esperado']);
+                    $row++;
+
+                    $detailSheet->setCellValue('A' . $row, 'Nombre Válido:');
+                    $nombre_valido = $actividad['detalles']['nombre_valido'];
+                    $detailSheet->setCellValue('B' . $row, $nombre_valido ? 'Sí' : 'No');
+                    $color = $nombre_valido ? 'FF92D050' : 'FFFFC7CE';
+                    $detailSheet->getStyle('B' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($color);
+                    $row++;
+
+                    $detailSheet->setCellValue('A' . $row, 'Entrega Activada:');
+                    $tiene_entregas = $actividad['detalles']['tiene_entregas'];
+                    $detailSheet->setCellValue('B' . $row, $tiene_entregas ? 'Sí' : 'No');
+                    $color = $tiene_entregas ? 'FF92D050' : 'FFFFC7CE';
+                    $detailSheet->getStyle('B' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($color);
+                    $row++;
+                }
+
+                $detailSheet->setCellValue('A' . $row, 'Es Válida:');
+                $es_valida = $actividad['detalles']['es_valido'];
+                $detailSheet->setCellValue('B' . $row, $es_valida ? 'SÍ' : 'NO');
+                $detailSheet->getStyle('B' . $row)->getFont()->setBold(true);
+                $color = $es_valida ? 'FF92D050' : 'FFFFC7CE';
+                $detailSheet->getStyle('B' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($color);
+                $row += 2;
+            }
+        }
+
+        $detailSheet->getColumnDimension('A')->setWidth(25);
+        $detailSheet->getColumnDimension('B')->setWidth(30);
+        $detailSheet->getColumnDimension('C')->setWidth(25);
+        $detailSheet->getColumnDimension('D')->setWidth(20);
+        $detailSheet->getColumnDimension('E')->setWidth(20);
+        $detailSheet->getColumnDimension('F')->setWidth(20);
+    }
+
+    // Hoja para CLASE-ENCUENTRO
+    if ($clase_encuentro['encontrada']) {
+        $sheet_index++;
+        $detailSheet = $spreadsheet->createSheet($sheet_index);
+        $detailSheet->setTitle('CLASE-ENCUENTRO');
+
+        $row = 1;
+        $detailSheet->setCellValue('A' . $row, 'DETALLE: CLASE-ENCUENTRO');
+        $detailSheet->mergeCells('A' . $row . ':F' . $row);
+        $detailSheet->getStyle('A' . $row)->getFont()->setBold(true)->setSize(14);
+        $detailSheet->getStyle('A' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF4472C4');
+        $detailSheet->getStyle('A' . $row)->getFont()->getColor()->setARGB(Color::COLOR_WHITE);
+        $detailSheet->getStyle('A' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $row += 2;
+
+        // Estado general
+        $detailSheet->setCellValue('A' . $row, 'Estado de Cumplimiento:');
+        $detailSheet->setCellValue('B' . $row, $clase_encuentro['cumple'] ? 'CUMPLE' : 'NO CUMPLE');
+        $detailSheet->getStyle('A' . $row)->getFont()->setBold(true);
+        $detailSheet->getStyle('B' . $row)->getFont()->setBold(true);
+        $color = $clase_encuentro['cumple'] ? 'FF92D050' : 'FFFFC7CE';
+        $detailSheet->getStyle('B' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB($color);
+        $row += 2;
+
+        $detailSheet->setCellValue('A' . $row, 'Mensaje:');
+        $detailSheet->setCellValue('B' . $row, $clase_encuentro['mensaje']);
+        $detailSheet->getStyle('A' . $row)->getFont()->setBold(true);
+        $detailSheet->mergeCells('B' . $row . ':F' . $row);
+        $detailSheet->getStyle('B' . $row)->getAlignment()->setWrapText(true);
+        $row += 2;
+
+        // Herramientas LTI encontradas
+        if (!empty($clase_encuentro['herramientas_lti'])) {
+            $detailSheet->setCellValue('A' . $row, 'HERRAMIENTAS LTI ENCONTRADAS');
+            $detailSheet->mergeCells('A' . $row . ':F' . $row);
+            $detailSheet->getStyle('A' . $row)->getFont()->setBold(true);
+            $detailSheet->getStyle('A' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFD9E1F2');
+            $row++;
+
+            foreach ($clase_encuentro['herramientas_lti'] as $herramienta) {
+                $detailSheet->setCellValue('A' . $row, 'Nombre:');
+                $detailSheet->setCellValue('B' . $row, $herramienta['nombre']);
+                $detailSheet->getStyle('A' . $row)->getFont()->setBold(true);
+                $detailSheet->mergeCells('B' . $row . ':F' . $row);
+                $row++;
+
+                $detailSheet->setCellValue('A' . $row, 'Tipo:');
+                $detailSheet->setCellValue('B' . $row, $herramienta['tipo']);
+                $row++;
+
+                $detailSheet->setCellValue('A' . $row, 'Fecha de Edición:');
+                $detailSheet->setCellValue('B' . $row, userdate($herramienta['fecha'], '%d/%m/%Y %H:%M'));
+                $row++;
+
+                $detailSheet->setCellValue('A' . $row, 'Total de Accesos:');
+                $detailSheet->setCellValue('B' . $row, $herramienta['total_accesos']);
+                $row++;
+
+                $detailSheet->setCellValue('A' . $row, 'Usuarios Únicos:');
+                $detailSheet->setCellValue('B' . $row, $herramienta['usuarios_unicos']);
+                $row++;
+
+                $detailSheet->setCellValue('A' . $row, 'Eventos de Creación:');
+                $detailSheet->setCellValue('B' . $row, $herramienta['eventos_creacion']);
+                $row++;
+
+                $detailSheet->setCellValue('A' . $row, 'Eventos de Actualización:');
+                $detailSheet->setCellValue('B' . $row, $herramienta['eventos_actualizacion']);
+                $row++;
+
+                // Análisis de eventos
+                if (!empty($herramienta['log_eventos'])) {
+                    $detailSheet->setCellValue('A' . $row, 'Detalle de Eventos:');
+                    $detailSheet->getStyle('A' . $row)->getFont()->setBold(true);
+                    $row++;
+
+                    // Encabezados de tabla de eventos
+                    $detailSheet->setCellValue('B' . $row, 'Tipo de Evento');
+                    $detailSheet->setCellValue('C' . $row, 'Cantidad');
+                    $detailSheet->getStyle('B' . $row . ':C' . $row)->getFont()->setBold(true);
+                    $detailSheet->getStyle('B' . $row . ':C' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFE7E6E6');
+                    $row++;
+
+                    foreach ($herramienta['log_eventos'] as $evento) {
+                        $detailSheet->setCellValue('B' . $row, $evento->action);
+                        $detailSheet->setCellValue('C' . $row, $evento->cantidad);
+                        $row++;
+                    }
+                }
+
+                $row += 2; // Espacio entre herramientas
+            }
+        }
+
+        // Estadísticas generales
+        $row++;
+        $detailSheet->setCellValue('A' . $row, 'ESTADÍSTICAS GENERALES');
+        $detailSheet->mergeCells('A' . $row . ':F' . $row);
+        $detailSheet->getStyle('A' . $row)->getFont()->setBold(true);
+        $detailSheet->getStyle('A' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFD9E1F2');
+        $row++;
+
+        $detailSheet->setCellValue('A' . $row, 'Total de Herramientas LTI:');
+        $detailSheet->setCellValue('B' . $row, count($clase_encuentro['herramientas_lti']));
+        $detailSheet->getStyle('A' . $row)->getFont()->setBold(true);
+        $row++;
+
+        $detailSheet->setCellValue('A' . $row, 'Total de Accesos (todas las herramientas):');
+        $detailSheet->setCellValue('B' . $row, $clase_encuentro['total_accesos']);
+        $detailSheet->getStyle('A' . $row)->getFont()->setBold(true);
+        $row++;
+
+        $detailSheet->setCellValue('A' . $row, 'Total de Usuarios Únicos:');
+        $detailSheet->setCellValue('B' . $row, $clase_encuentro['usuarios_unicos']);
+        $detailSheet->getStyle('A' . $row)->getFont()->setBold(true);
+        $row++;
+
+        $detailSheet->getColumnDimension('A')->setWidth(35);
+        $detailSheet->getColumnDimension('B')->setWidth(30);
+        $detailSheet->getColumnDimension('C')->setWidth(20);
+        $detailSheet->getColumnDimension('D')->setWidth(20);
+        $detailSheet->getColumnDimension('E')->setWidth(20);
+        $detailSheet->getColumnDimension('F')->setWidth(20);
     }
 }
 
