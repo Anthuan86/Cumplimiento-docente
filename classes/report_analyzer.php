@@ -256,15 +256,25 @@ class report_analyzer {
         // Obtener duración del curso (32 o 48 horas)
         $duracion_curso = self::get_course_duration($course_id);
 
-        // Definir requisitos según modalidad
-        $minimo_semanas = $es_distancia ? 8 : 3;
-        $minimo_recursos_por_semana = $es_distancia ? 3 : 1;
+        // Detectar tipo de modalidad específico
+        $es_presencial = stripos($modalidad_name, 'Presencial') !== false && stripos($modalidad_name, 'Semi') === false;
 
-        // Definir requisitos para actividades según modalidad y duración
+        // Definir requisitos según modalidad y duración
         if ($es_distancia) {
+            // Modalidad Distancia
+            $minimo_semanas = 8;
+            $minimo_recursos_por_semana = 3;
             $minimo_actividades_por_semana = 1;
+        } else if ($es_presencial && $duracion_curso == 48) {
+            // Modalidad Presencial de 48 horas
+            $minimo_semanas = 5;
+            $minimo_recursos_por_semana = 1;
+            $minimo_actividades_por_semana = 4;
         } else {
-            // Presencial, Semipresencial, Híbrida, En Línea
+            // Otras modalidades (Presencial 32h, Semipresencial, Híbrida, En Línea)
+            $minimo_semanas = 3;
+            $minimo_recursos_por_semana = 1;
+
             if ($duracion_curso == 32) {
                 $minimo_actividades_por_semana = 2;
             } else if ($duracion_curso == 48) {
