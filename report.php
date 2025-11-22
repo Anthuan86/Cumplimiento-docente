@@ -443,7 +443,11 @@ echo $OUTPUT->header();
                                     No se encontraron herramientas externas (LTI) en esta sección.
                                 </div>
                             <?php else: ?>
-                                <?php foreach ($seccion['herramientas_lti'] as $herramienta): ?>
+                                <?php
+                                $herramienta_index = 0;
+                                foreach ($seccion['herramientas_lti'] as $herramienta):
+                                    $herramienta_index++;
+                                ?>
                                     <div class="activity-item card mb-3 <?php echo $herramienta['es_valido'] ? 'border-success' : 'border-danger'; ?>">
                                         <div class="card-header <?php echo $herramienta['es_valido'] ? 'bg-success text-white' : 'bg-danger text-white'; ?>">
                                             <div class="d-flex justify-content-between align-items-center">
@@ -487,6 +491,48 @@ echo $OUTPUT->header();
                                             <?php if (!empty($herramienta['toolurl'])): ?>
                                                 <div class="mt-2">
                                                     <small class="text-muted"><strong>URL de la herramienta:</strong> <?php echo htmlspecialchars($herramienta['toolurl']); ?></small>
+                                                </div>
+                                            <?php endif; ?>
+
+                                            <!-- Detalles de eventos en logs -->
+                                            <?php if (!empty($herramienta['log_eventos'])): ?>
+                                                <div class="mt-3">
+                                                    <button class="btn btn-sm btn-outline-info" type="button" data-toggle="collapse"
+                                                            data-target="#lti-eventos-<?php echo $herramienta_index; ?>">
+                                                        <i class="icon fa fa-list fa-fw"></i>
+                                                        Ver detalle de eventos (<?php echo count($herramienta['log_eventos']); ?> tipos)
+                                                    </button>
+                                                    <div class="collapse mt-3" id="lti-eventos-<?php echo $herramienta_index; ?>">
+                                                        <div class="alert alert-info mb-0">
+                                                            <h6 class="mb-2"><i class="icon fa fa-info-circle fa-fw"></i> Resumen de Eventos:</h6>
+                                                            <ul class="mb-2">
+                                                                <li><strong>Eventos de creación:</strong> <?php echo $herramienta['eventos_creacion']; ?></li>
+                                                                <li><strong>Eventos de actualización:</strong> <?php echo $herramienta['eventos_actualizacion']; ?></li>
+                                                            </ul>
+                                                            <h6 class="mb-2 mt-3">Todos los Eventos Registrados:</h6>
+                                                            <table class="table table-sm table-bordered bg-white">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>Acción</th>
+                                                                        <th>Cantidad</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <?php foreach ($herramienta['log_eventos'] as $evento): ?>
+                                                                        <tr>
+                                                                            <td><code><?php echo htmlspecialchars($evento['accion']); ?></code></td>
+                                                                            <td><span class="badge badge-primary"><?php echo $evento['cantidad']; ?></span></td>
+                                                                        </tr>
+                                                                    <?php endforeach; ?>
+                                                                </tbody>
+                                                            </table>
+                                                            <small class="text-muted">
+                                                                <i class="icon fa fa-lightbulb fa-fw"></i>
+                                                                <strong>Nota:</strong> Estos eventos provienen de la tabla logstore_standard_log de Moodle.
+                                                                Cada acción representa una interacción con la herramienta LTI.
+                                                            </small>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             <?php endif; ?>
                                         </div>

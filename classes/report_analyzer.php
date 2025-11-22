@@ -1594,10 +1594,12 @@ class report_analyzer {
                     // Contar registros de acceso en logstore_standard_log
                     $total_accesos = 0;
                     $usuarios_unicos = 0;
+                    $eventos_creacion = 0;
+                    $eventos_actualizacion = 0;
+                    $log_eventos = [];
 
                     try {
-                        // Consultar logs relacionados con esta herramienta LTI
-                        // Buscamos por component 'mod_lti' y contextinstanceid (course_module id)
+                        // 1. Consultar estadísticas generales de accesos
                         $sql_logs = "SELECT COUNT(DISTINCT l.id) as total,
                                             COUNT(DISTINCT l.userid) as usuarios
                                      FROM {logstore_standard_log} l
@@ -1616,10 +1618,73 @@ class report_analyzer {
                             $total_accesos = $log_stats->total;
                             $usuarios_unicos = $log_stats->usuarios;
                         }
+
+                        // 2. Buscar eventos de creación y actualización
+                        $sql_eventos = "SELECT COUNT(*) as total
+                                        FROM {logstore_standard_log} l
+                                        WHERE l.component = :component
+                                        AND l.contextinstanceid = :moduleid
+                                        AND l.courseid = :courseid
+                                        AND l.action IN ('created', 'added')";
+
+                        $eventos_create = $DB->get_record_sql($sql_eventos, [
+                            'component' => 'mod_lti',
+                            'moduleid' => $module_id,
+                            'courseid' => $course_id
+                        ]);
+
+                        if ($eventos_create) {
+                            $eventos_creacion = $eventos_create->total;
+                        }
+
+                        $sql_updates = "SELECT COUNT(*) as total
+                                        FROM {logstore_standard_log} l
+                                        WHERE l.component = :component
+                                        AND l.contextinstanceid = :moduleid
+                                        AND l.courseid = :courseid
+                                        AND l.action IN ('updated', 'modified')";
+
+                        $eventos_update = $DB->get_record_sql($sql_updates, [
+                            'component' => 'mod_lti',
+                            'moduleid' => $module_id,
+                            'courseid' => $course_id
+                        ]);
+
+                        if ($eventos_update) {
+                            $eventos_actualizacion = $eventos_update->total;
+                        }
+
+                        // 3. Obtener lista de eventos únicos (por tipo de acción)
+                        $sql_tipos = "SELECT DISTINCT l.action, COUNT(*) as cantidad
+                                      FROM {logstore_standard_log} l
+                                      WHERE l.component = :component
+                                      AND l.contextinstanceid = :moduleid
+                                      AND l.courseid = :courseid
+                                      GROUP BY l.action
+                                      ORDER BY cantidad DESC";
+
+                        $tipos_eventos = $DB->get_records_sql($sql_tipos, [
+                            'component' => 'mod_lti',
+                            'moduleid' => $module_id,
+                            'courseid' => $course_id
+                        ]);
+
+                        if ($tipos_eventos) {
+                            foreach ($tipos_eventos as $evento) {
+                                $log_eventos[] = [
+                                    'accion' => $evento->action,
+                                    'cantidad' => $evento->cantidad
+                                ];
+                            }
+                        }
+
                     } catch (\Exception $e) {
                         // Si hay error al consultar logs, continuar sin esa información
                         $total_accesos = 0;
                         $usuarios_unicos = 0;
+                        $eventos_creacion = 0;
+                        $eventos_actualizacion = 0;
+                        $log_eventos = [];
                     }
 
                     $herramienta_info = [
@@ -1630,6 +1695,9 @@ class report_analyzer {
                         'fecha_valida' => $fecha_valida,
                         'total_accesos' => $total_accesos,
                         'usuarios_unicos' => $usuarios_unicos,
+                        'eventos_creacion' => $eventos_creacion,
+                        'eventos_actualizacion' => $eventos_actualizacion,
+                        'log_eventos' => $log_eventos,
                         'tiene_actividad' => $total_accesos > 0,
                         'es_valido' => $fecha_valida
                     ];
