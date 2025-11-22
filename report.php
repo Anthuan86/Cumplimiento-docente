@@ -124,6 +124,107 @@ echo $OUTPUT->header();
             </div>
         <?php else: ?>
             <?php
+            // Calcular métricas generales de cumplimiento
+            $material_apoyo = $analisis['secciones']['material_apoyo'];
+            $actividades = $analisis['secciones']['actividades_aprendizaje'];
+
+            // Total de semanas encontradas (usar el máximo de ambas secciones)
+            $total_semanas_encontradas = max(
+                $material_apoyo['total_semanas'],
+                $actividades['total_semanas']
+            );
+
+            // Verificar si cumple con el mínimo de semanas
+            $cumple_minimo_semanas = $total_semanas_encontradas >= $analisis['minimo_semanas'];
+
+            // Calcular porcentaje general (promedio de ambas secciones)
+            $porcentaje_general = 0;
+            $secciones_contadas = 0;
+
+            if ($material_apoyo['encontrada']) {
+                $porcentaje_general += $material_apoyo['porcentaje_cumplimiento'];
+                $secciones_contadas++;
+            }
+            if ($actividades['encontrada']) {
+                $porcentaje_general += $actividades['porcentaje_cumplimiento'];
+                $secciones_contadas++;
+            }
+
+            if ($secciones_contadas > 0) {
+                $porcentaje_general = round($porcentaje_general / $secciones_contadas, 2);
+            }
+            ?>
+
+            <!-- Resumen General de Cumplimiento -->
+            <div class="general-summary card mb-5 border-<?php echo $cumple_minimo_semanas ? 'success' : 'warning'; ?>">
+                <div class="card-header bg-<?php echo $cumple_minimo_semanas ? 'success' : 'warning'; ?> text-white">
+                    <h5 class="mb-0">
+                        <i class="icon fa fa-chart-bar fa-fw"></i>
+                        Resumen General de Cumplimiento
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="stat-box text-center p-4 border rounded bg-light">
+                                <h3 class="display-4 mb-0"><?php echo $total_semanas_encontradas; ?></h3>
+                                <small class="text-muted">Semanas Detectadas</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-box text-center p-4 border rounded bg-light">
+                                <h3 class="display-4 mb-0"><?php echo $analisis['minimo_semanas']; ?></h3>
+                                <small class="text-muted">Semanas Requeridas</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-box text-center p-4 border rounded <?php echo $cumple_minimo_semanas ? 'bg-success' : 'bg-warning'; ?> text-white">
+                                <h3 class="display-4 mb-0">
+                                    <?php echo $cumple_minimo_semanas ? '✓' : '✗'; ?>
+                                </h3>
+                                <small><?php echo $cumple_minimo_semanas ? 'Cumple Mínimo' : 'No Cumple Mínimo'; ?></small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-box text-center p-4 border rounded bg-light">
+                                <h3 class="display-4 mb-0 <?php
+                                    if ($porcentaje_general >= 80) echo 'text-success';
+                                    else if ($porcentaje_general >= 60) echo 'text-warning';
+                                    else echo 'text-danger';
+                                ?>">
+                                    <?php echo $porcentaje_general; ?>%
+                                </h3>
+                                <small class="text-muted">Cumplimiento General</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <div class="progress" style="height: 30px;">
+                            <div class="progress-bar <?php
+                                if ($porcentaje_general >= 80) echo 'bg-success';
+                                else if ($porcentaje_general >= 60) echo 'bg-warning';
+                                else echo 'bg-danger';
+                            ?>" role="progressbar" style="width: <?php echo $porcentaje_general; ?>%;">
+                                <strong><?php echo $porcentaje_general; ?>%</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <?php if (!$cumple_minimo_semanas): ?>
+                        <div class="alert alert-warning mt-3 mb-0">
+                            <i class="icon fa fa-exclamation-triangle fa-fw"></i>
+                            <strong>Advertencia:</strong> El curso tiene <?php echo $total_semanas_encontradas; ?> semana(s) detectada(s),
+                            pero se requieren al menos <?php echo $analisis['minimo_semanas']; ?> semana(s) según la modalidad
+                            <strong><?php echo $modalidad_name; ?></strong>.
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <h5 class="mt-4 mb-3">Análisis Detallado por Sección</h5>
+
+            <?php
             // Iterar sobre las secciones a analizar
             $secciones_a_mostrar = [
                 'material_apoyo' => 'Recursos o Material de Apoyo',
