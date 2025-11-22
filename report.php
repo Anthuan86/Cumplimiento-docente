@@ -127,8 +127,9 @@ echo $OUTPUT->header();
             // Calcular métricas generales de cumplimiento
             $material_apoyo = $analisis['secciones']['material_apoyo'];
             $actividades = $analisis['secciones']['actividades_aprendizaje'];
+            $actividades_finales = $analisis['secciones']['actividades_finales'];
 
-            // Total de semanas encontradas (usar el máximo de ambas secciones)
+            // Total de semanas encontradas (usar el máximo de ambas secciones con semanas)
             $total_semanas_encontradas = max(
                 $material_apoyo['total_semanas'],
                 $actividades['total_semanas']
@@ -137,7 +138,7 @@ echo $OUTPUT->header();
             // Verificar si cumple con el mínimo de semanas
             $cumple_minimo_semanas = $total_semanas_encontradas >= $analisis['minimo_semanas'];
 
-            // Calcular porcentaje general (promedio de ambas secciones)
+            // Calcular porcentaje general (promedio de todas las secciones encontradas)
             $porcentaje_general = 0;
             $secciones_contadas = 0;
 
@@ -147,6 +148,12 @@ echo $OUTPUT->header();
             }
             if ($actividades['encontrada']) {
                 $porcentaje_general += $actividades['porcentaje_cumplimiento'];
+                $secciones_contadas++;
+            }
+            if ($actividades_finales['encontrada']) {
+                // Para actividades finales: 100% si cumple, 0% si no cumple
+                $porcentaje_finales = $actividades_finales['cumple'] ? 100 : 0;
+                $porcentaje_general += $porcentaje_finales;
                 $secciones_contadas++;
             }
 
@@ -208,6 +215,66 @@ echo $OUTPUT->header();
                             ?>" role="progressbar" style="width: <?php echo $porcentaje_general; ?>%;">
                                 <strong><?php echo $porcentaje_general; ?>%</strong>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Desglose por secciones -->
+                    <div class="mt-4">
+                        <h6 class="mb-3">Estado por Sección:</h6>
+                        <div class="row">
+                            <?php if ($material_apoyo['encontrada']): ?>
+                                <div class="col-md-4 mb-2">
+                                    <div class="card border-<?php echo $material_apoyo['porcentaje_cumplimiento'] >= 80 ? 'success' : ($material_apoyo['porcentaje_cumplimiento'] >= 60 ? 'warning' : 'danger'); ?>">
+                                        <div class="card-body p-3">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <small class="text-muted">Material de Apoyo</small>
+                                                    <h6 class="mb-0 <?php echo $material_apoyo['porcentaje_cumplimiento'] >= 80 ? 'text-success' : ($material_apoyo['porcentaje_cumplimiento'] >= 60 ? 'text-warning' : 'text-danger'); ?>">
+                                                        <?php echo $material_apoyo['porcentaje_cumplimiento']; ?>%
+                                                    </h6>
+                                                </div>
+                                                <i class="icon fa fa-<?php echo $material_apoyo['porcentaje_cumplimiento'] >= 80 ? 'check-circle text-success' : ($material_apoyo['porcentaje_cumplimiento'] >= 60 ? 'exclamation-circle text-warning' : 'times-circle text-danger'); ?> fa-2x"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if ($actividades['encontrada']): ?>
+                                <div class="col-md-4 mb-2">
+                                    <div class="card border-<?php echo $actividades['porcentaje_cumplimiento'] >= 80 ? 'success' : ($actividades['porcentaje_cumplimiento'] >= 60 ? 'warning' : 'danger'); ?>">
+                                        <div class="card-body p-3">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <small class="text-muted">Actividades de Aprendizaje</small>
+                                                    <h6 class="mb-0 <?php echo $actividades['porcentaje_cumplimiento'] >= 80 ? 'text-success' : ($actividades['porcentaje_cumplimiento'] >= 60 ? 'text-warning' : 'text-danger'); ?>">
+                                                        <?php echo $actividades['porcentaje_cumplimiento']; ?>%
+                                                    </h6>
+                                                </div>
+                                                <i class="icon fa fa-<?php echo $actividades['porcentaje_cumplimiento'] >= 80 ? 'check-circle text-success' : ($actividades['porcentaje_cumplimiento'] >= 60 ? 'exclamation-circle text-warning' : 'times-circle text-danger'); ?> fa-2x"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if ($actividades_finales['encontrada']): ?>
+                                <div class="col-md-4 mb-2">
+                                    <div class="card border-<?php echo $actividades_finales['cumple'] ? 'success' : 'danger'; ?>">
+                                        <div class="card-body p-3">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <small class="text-muted">Actividades Finales</small>
+                                                    <h6 class="mb-0 <?php echo $actividades_finales['cumple'] ? 'text-success' : 'text-danger'; ?>">
+                                                        <?php echo $actividades_finales['cumple'] ? '100%' : '0%'; ?>
+                                                    </h6>
+                                                </div>
+                                                <i class="icon fa fa-<?php echo $actividades_finales['cumple'] ? 'check-circle text-success' : 'times-circle text-danger'; ?> fa-2x"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
 
