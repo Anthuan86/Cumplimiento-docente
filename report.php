@@ -929,6 +929,11 @@ echo $OUTPUT->header();
                 <i class="icon fa fa-print fa-fw"></i>
                 Imprimir Reporte
             </button>
+            <a href="<?php echo new moodle_url('/local/cumplimiento_docente/export_excel.php', ['courseid' => $courseid]); ?>"
+               class="btn btn-success">
+                <i class="icon fa fa-file-excel fa-fw"></i>
+                Exportar a Excel
+            </a>
         <?php endif; ?>
     </div>
 </div>
