@@ -128,6 +128,7 @@ echo $OUTPUT->header();
             $material_apoyo = $analisis['secciones']['material_apoyo'];
             $actividades = $analisis['secciones']['actividades_aprendizaje'];
             $actividades_finales = $analisis['secciones']['actividades_finales'];
+            $clase_encuentro = $analisis['secciones']['clase_encuentro'];
 
             // Total de semanas encontradas (usar el máximo de ambas secciones con semanas)
             $total_semanas_encontradas = max(
@@ -154,6 +155,12 @@ echo $OUTPUT->header();
                 // Para actividades finales: 100% si cumple, 0% si no cumple
                 $porcentaje_finales = $actividades_finales['cumple'] ? 100 : 0;
                 $porcentaje_general += $porcentaje_finales;
+                $secciones_contadas++;
+            }
+            if ($clase_encuentro['encontrada']) {
+                // Para clase-encuentro: 100% si cumple, 0% si no cumple
+                $porcentaje_clase_encuentro = $clase_encuentro['cumple'] ? 100 : 0;
+                $porcentaje_general += $porcentaje_clase_encuentro;
                 $secciones_contadas++;
             }
 
@@ -259,7 +266,7 @@ echo $OUTPUT->header();
                             <?php endif; ?>
 
                             <?php if ($actividades_finales['encontrada']): ?>
-                                <div class="col-md-4 mb-2">
+                                <div class="col-md-3 mb-2">
                                     <div class="card border-<?php echo $actividades_finales['cumple'] ? 'success' : 'danger'; ?>">
                                         <div class="card-body p-3">
                                             <div class="d-flex justify-content-between align-items-center">
@@ -270,6 +277,24 @@ echo $OUTPUT->header();
                                                     </h6>
                                                 </div>
                                                 <i class="icon fa fa-<?php echo $actividades_finales['cumple'] ? 'check-circle text-success' : 'times-circle text-danger'; ?> fa-2x"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if ($clase_encuentro['encontrada']): ?>
+                                <div class="col-md-3 mb-2">
+                                    <div class="card border-<?php echo $clase_encuentro['cumple'] ? 'success' : 'danger'; ?>">
+                                        <div class="card-body p-3">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <small class="text-muted">Clase-Encuentro</small>
+                                                    <h6 class="mb-0 <?php echo $clase_encuentro['cumple'] ? 'text-success' : 'text-danger'; ?>">
+                                                        <?php echo $clase_encuentro['cumple'] ? '100%' : '0%'; ?>
+                                                    </h6>
+                                                </div>
+                                                <i class="icon fa fa-<?php echo $clase_encuentro['cumple'] ? 'check-circle text-success' : 'times-circle text-danger'; ?> fa-2x"></i>
                                             </div>
                                         </div>
                                     </div>
@@ -296,7 +321,8 @@ echo $OUTPUT->header();
             $secciones_a_mostrar = [
                 'material_apoyo' => 'Recursos o Material de Apoyo',
                 'actividades_aprendizaje' => 'Actividades de Aprendizaje',
-                'actividades_finales' => 'Actividades Finales'
+                'actividades_finales' => 'Actividades Finales',
+                'clase_encuentro' => 'CLASE-ENCUENTRO'
             ];
 
             foreach ($secciones_a_mostrar as $seccion_key => $seccion_titulo):
@@ -332,6 +358,29 @@ echo $OUTPUT->header();
                                         <div class="stat-box text-center p-4 border rounded bg-light">
                                             <h2 class="display-4 mb-0"><?php echo $seccion['total_actividades']; ?></h2>
                                             <small class="text-muted">Actividades Encontradas</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="stat-box text-center p-4 border rounded <?php echo $seccion['cumple'] ? 'bg-success' : 'bg-danger'; ?> text-white">
+                                            <h2 class="display-4 mb-0">
+                                                <?php echo $seccion['cumple'] ? '✓' : '✗'; ?>
+                                            </h2>
+                                            <small><?php echo $seccion['cumple'] ? 'Cumple' : 'No Cumple'; ?></small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="stat-box text-center p-4 border rounded bg-light">
+                                            <p class="mb-0"><small><?php echo $seccion['mensaje']; ?></small></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php elseif ($seccion_key === 'clase_encuentro'): ?>
+                                <!-- Resumen para CLASE-ENCUENTRO -->
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="stat-box text-center p-4 border rounded bg-light">
+                                            <h2 class="display-4 mb-0"><?php echo $seccion['total_herramientas']; ?></h2>
+                                            <small class="text-muted">Herramientas LTI Encontradas</small>
                                         </div>
                                     </div>
                                     <div class="col-md-4">
@@ -384,7 +433,54 @@ echo $OUTPUT->header();
 
                     <!-- Detalle por semanas o actividades -->
                     <div class="weeks-detail">
-                        <?php if ($seccion_key === 'actividades_finales'): ?>
+                        <?php if ($seccion_key === 'clase_encuentro'): ?>
+                            <!-- Detalle de CLASE-ENCUENTRO -->
+                            <h6>Detalle de Herramientas LTI</h6>
+
+                            <?php if (empty($seccion['herramientas_lti'])): ?>
+                                <div class="alert alert-warning">
+                                    <i class="icon fa fa-exclamation-triangle fa-fw"></i>
+                                    No se encontraron herramientas externas (LTI) en esta sección.
+                                </div>
+                            <?php else: ?>
+                                <?php foreach ($seccion['herramientas_lti'] as $herramienta): ?>
+                                    <div class="activity-item card mb-3 <?php echo $herramienta['es_valido'] ? 'border-success' : 'border-danger'; ?>">
+                                        <div class="card-header <?php echo $herramienta['es_valido'] ? 'bg-success text-white' : 'bg-danger text-white'; ?>">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <strong><?php echo format_string($herramienta['nombre']); ?></strong>
+                                                <span class="badge badge-light <?php echo $herramienta['es_valido'] ? 'text-success' : 'text-danger'; ?>">
+                                                    <?php echo $herramienta['es_valido'] ? '✓ Cumple' : '✗ No Cumple'; ?>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <div class="requirement-box p-3 border rounded bg-light">
+                                                        <i class="icon fa fa-external-link-alt fa-fw"></i>
+                                                        <strong>Tipo:</strong><br>
+                                                        <small>Herramienta Externa (LTI)</small>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="requirement-box p-3 border rounded <?php echo $herramienta['fecha_valida'] ? 'bg-success-light' : 'bg-danger-light'; ?>">
+                                                        <i class="icon fa fa-<?php echo $herramienta['fecha_valida'] ? 'check-circle text-success' : 'times-circle text-danger'; ?> fa-fw"></i>
+                                                        <strong>Fecha:</strong><br>
+                                                        <small><?php echo $herramienta['fecha_valida'] ? 'Posterior al inicio ✓' : 'Anterior al inicio ✗'; ?></small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <?php if (!empty($herramienta['toolurl'])): ?>
+                                                <div class="mt-2">
+                                                    <small class="text-muted"><strong>URL de la herramienta:</strong> <?php echo htmlspecialchars($herramienta['toolurl']); ?></small>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+
+                        <?php elseif ($seccion_key === 'actividades_finales'): ?>
                             <!-- Detalle de Actividades Finales -->
                             <h6>Detalle de Actividades Finales</h6>
 
@@ -735,6 +831,13 @@ echo $OUTPUT->header();
                         </ul>
                     <?php endif; ?>
                     <li>Todas las actividades deben estar editadas <strong>después de la fecha de inicio del curso</strong></li>
+                </ul>
+
+                <p><strong>Sección: CLASE-ENCUENTRO</strong></p>
+                <ul>
+                    <li>Debe contener <strong>al menos UNA herramienta externa (LTI)</strong></li>
+                    <li>La herramienta LTI debe estar editada <strong>después de la fecha de inicio del curso</strong></li>
+                    <li><strong>Aplica para todas las modalidades</strong></li>
                 </ul>
 
                 <p><strong>Requisitos generales:</strong></p>

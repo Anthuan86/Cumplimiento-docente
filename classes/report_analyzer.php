@@ -311,6 +311,14 @@ class report_analyzer {
             $es_distancia
         );
 
+        // Analizar sección "CLASE-ENCUENTRO"
+        // Todas las modalidades deben tener esta sección con herramienta LTI
+        $clase_encuentro = self::analyze_clase_encuentro_section(
+            $course_id,
+            ['CLASE-ENCUENTRO', 'Clase-Encuentro', 'Clase Encuentro'],
+            $course_startdate
+        );
+
         // Si ninguna sección fue encontrada, retornar error
         if (!$material_apoyo['encontrada'] && !$actividades_aprendizaje['encontrada']) {
             return [
@@ -331,7 +339,8 @@ class report_analyzer {
             'secciones' => [
                 'material_apoyo' => $material_apoyo,
                 'actividades_aprendizaje' => $actividades_aprendizaje,
-                'actividades_finales' => $actividades_finales
+                'actividades_finales' => $actividades_finales,
+                'clase_encuentro' => $clase_encuentro
             ]
         ];
     }
@@ -1511,6 +1520,113 @@ class report_analyzer {
             'total_actividades' => count($actividades_encontradas),
             'mensaje' => $mensaje,
             'es_distancia' => $es_distancia
+        ];
+    }
+
+    /**
+     * Analiza la sección CLASE-ENCUENTRO
+     * @param int $course_id ID del curso
+     * @param array $section_patterns Patrones de nombres para identificar la sección
+     * @param int $course_startdate Fecha de inicio del curso
+     * @return array Resultado del análisis
+     */
+    private static function analyze_clase_encuentro_section($course_id, $section_patterns, $course_startdate) {
+        global $DB;
+
+        // Buscar la sección con búsqueda robusta para manejar acentos y mayúsculas
+        $section = null;
+        $sections = $DB->get_records('course_sections', ['course' => $course_id]);
+
+        foreach ($sections as $sec) {
+            if (empty($sec->name)) {
+                continue;
+            }
+
+            // Normalizar el nombre de la sección para comparación
+            $section_name_normalized = mb_strtolower($sec->name, 'UTF-8');
+
+            foreach ($section_patterns as $pattern) {
+                // Normalizar el patrón también
+                $pattern_normalized = mb_strtolower($pattern, 'UTF-8');
+
+                // Buscar con mb_strpos para mejor manejo de UTF-8
+                if (mb_strpos($section_name_normalized, $pattern_normalized, 0, 'UTF-8') !== false) {
+                    $section = $sec;
+                    break 2;
+                }
+            }
+        }
+
+        if (!$section) {
+            return [
+                'encontrada' => false,
+                'nombre' => '',
+                'cumple' => false,
+                'mensaje' => 'Sección no encontrada',
+                'herramientas_lti' => []
+            ];
+        }
+
+        // Obtener módulos de la sección
+        $modules_ids = explode(',', $section->sequence);
+        $modules_ids = array_filter($modules_ids);
+
+        $herramientas_lti = [];
+        $cumple = false;
+
+        foreach ($modules_ids as $module_id) {
+            $module = $DB->get_record('course_modules', ['id' => $module_id]);
+            if (!$module) continue;
+
+            $modname = $DB->get_field('modules', 'name', ['id' => $module->module]);
+
+            // Verificar si es una herramienta externa (LTI)
+            if ($modname === 'lti') {
+                $lti = $DB->get_record('lti', ['id' => $module->instance]);
+                if ($lti) {
+                    // Verificar fecha de modificación
+                    $fecha_modificacion = isset($lti->timemodified) ? $lti->timemodified : 0;
+                    if ($fecha_modificacion == 0 && isset($module->added)) {
+                        $fecha_modificacion = $module->added;
+                    }
+                    $fecha_valida = $fecha_modificacion > $course_startdate;
+
+                    $herramienta_info = [
+                        'tipo' => 'lti',
+                        'nombre' => $lti->name,
+                        'toolurl' => isset($lti->toolurl) ? $lti->toolurl : '',
+                        'fecha_modificacion' => $fecha_modificacion,
+                        'fecha_valida' => $fecha_valida,
+                        'es_valido' => $fecha_valida
+                    ];
+
+                    $herramientas_lti[] = $herramienta_info;
+
+                    // Si encontramos al menos una herramienta LTI válida, cumple
+                    if ($fecha_valida) {
+                        $cumple = true;
+                    }
+                }
+            }
+        }
+
+        // Determinar mensaje
+        $mensaje = '';
+        if (empty($herramientas_lti)) {
+            $mensaje = 'No se encontraron herramientas externas (LTI) en la sección';
+        } else if (!$cumple) {
+            $mensaje = 'Se encontraron herramientas LTI pero no cumplen con la validación de fecha';
+        } else {
+            $mensaje = 'La sección cumple con los requisitos (tiene herramienta LTI)';
+        }
+
+        return [
+            'encontrada' => true,
+            'nombre' => $section->name,
+            'cumple' => $cumple,
+            'herramientas_lti' => $herramientas_lti,
+            'total_herramientas' => count($herramientas_lti),
+            'mensaje' => $mensaje
         ];
     }
 
