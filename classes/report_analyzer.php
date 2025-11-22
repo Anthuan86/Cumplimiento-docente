@@ -302,6 +302,8 @@ class report_analyzer {
         );
 
         // Analizar sección "Actividades Finales"
+        // Puede llamarse: "Actividades Finales", "Actividades finales", "EVALUACIÓN FINAL", "Evaluación Final"
+        // Nota: stripos() es case-insensitive, por lo que buscará sin importar mayúsculas/minúsculas
         $actividades_finales = self::analyze_final_activities_section(
             $course_id,
             ['Actividades Finales', 'Evaluación Final'],
