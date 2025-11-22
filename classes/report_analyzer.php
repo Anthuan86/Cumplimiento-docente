@@ -702,24 +702,51 @@ class report_analyzer {
             if ($module->modname === 'label' && isset($instancia->intro)) {
                 $content = $instancia->intro;
 
-                // Patrones de detección de videos embebidos
-                $embed_patterns = [
-                    '/<video[\s>]/i',                          // Tag <video>
-                    '/<iframe.*?youtube/i',                    // YouTube iframe
-                    '/<iframe.*?vimeo/i',                      // Vimeo iframe
-                    '/<iframe.*?dailymotion/i',                // Dailymotion iframe
-                    '/<iframe.*?wistia/i',                     // Wistia iframe
-                    '/<iframe.*?loom/i',                       // Loom iframe
-                    '/<iframe.*?panopto/i',                    // Panopto iframe
-                    '/<embed.*?type=["\']video/i',             // Embed tag con video
-                    '/\[video\]/i',                            // Shortcode [video]
-                    '/src=["\'].*?\.(mp4|avi|mov|webm)/i',     // Source con extensión de video
+                // Primero, buscar URLs de video en el contenido (links, texto plano, etc.)
+                $video_url_patterns = [
+                    '/youtube\.com\/watch/i',
+                    '/youtu\.be\//i',
+                    '/youtube\.com\/embed/i',
+                    '/vimeo\.com\//i',
+                    '/dailymotion\.com/i',
+                    '/wistia\.com/i',
+                    '/loom\.com/i',
+                    '/panopto\./i',
+                    '/kaltura\./i',
+                    '/drive\.google\.com.*\/file/i',
+                    '/\.mp4(\?|"|\'|>|$)/i',
+                    '/\.avi(\?|"|\'|>|$)/i',
+                    '/\.mov(\?|"|\'|>|$)/i',
+                    '/\.webm(\?|"|\'|>|$)/i',
                 ];
 
-                foreach ($embed_patterns as $pattern) {
+                foreach ($video_url_patterns as $pattern) {
                     if (preg_match($pattern, $content)) {
                         $es_video = true;
                         break;
+                    }
+                }
+
+                // Si no se encontró URL, buscar tags HTML de video embebido
+                if (!$es_video) {
+                    $embed_patterns = [
+                        '/<video[\s>]/i',                          // Tag <video>
+                        '/<iframe.*?youtube/i',                    // YouTube iframe
+                        '/<iframe.*?vimeo/i',                      // Vimeo iframe
+                        '/<iframe.*?dailymotion/i',                // Dailymotion iframe
+                        '/<iframe.*?wistia/i',                     // Wistia iframe
+                        '/<iframe.*?loom/i',                       // Loom iframe
+                        '/<iframe.*?panopto/i',                    // Panopto iframe
+                        '/<embed.*?type=["\']video/i',             // Embed tag con video
+                        '/\[video\]/i',                            // Shortcode [video]
+                        '/src=["\'].*?\.(mp4|avi|mov|webm)/i',     // Source con extensión de video
+                    ];
+
+                    foreach ($embed_patterns as $pattern) {
+                        if (preg_match($pattern, $content)) {
+                            $es_video = true;
+                            break;
+                        }
                     }
                 }
             }
@@ -728,24 +755,51 @@ class report_analyzer {
             if ($module->modname === 'page' && isset($instancia->content)) {
                 $content = $instancia->content;
 
-                // Mismos patrones que para labels
-                $embed_patterns = [
-                    '/<video[\s>]/i',
-                    '/<iframe.*?youtube/i',
-                    '/<iframe.*?vimeo/i',
-                    '/<iframe.*?dailymotion/i',
-                    '/<iframe.*?wistia/i',
-                    '/<iframe.*?loom/i',
-                    '/<iframe.*?panopto/i',
-                    '/<embed.*?type=["\']video/i',
-                    '/\[video\]/i',
-                    '/src=["\'].*?\.(mp4|avi|mov|webm)/i',
+                // Primero, buscar URLs de video en el contenido
+                $video_url_patterns = [
+                    '/youtube\.com\/watch/i',
+                    '/youtu\.be\//i',
+                    '/youtube\.com\/embed/i',
+                    '/vimeo\.com\//i',
+                    '/dailymotion\.com/i',
+                    '/wistia\.com/i',
+                    '/loom\.com/i',
+                    '/panopto\./i',
+                    '/kaltura\./i',
+                    '/drive\.google\.com.*\/file/i',
+                    '/\.mp4(\?|"|\'|>|$)/i',
+                    '/\.avi(\?|"|\'|>|$)/i',
+                    '/\.mov(\?|"|\'|>|$)/i',
+                    '/\.webm(\?|"|\'|>|$)/i',
                 ];
 
-                foreach ($embed_patterns as $pattern) {
+                foreach ($video_url_patterns as $pattern) {
                     if (preg_match($pattern, $content)) {
                         $es_video = true;
                         break;
+                    }
+                }
+
+                // Si no se encontró URL, buscar tags HTML de video embebido
+                if (!$es_video) {
+                    $embed_patterns = [
+                        '/<video[\s>]/i',
+                        '/<iframe.*?youtube/i',
+                        '/<iframe.*?vimeo/i',
+                        '/<iframe.*?dailymotion/i',
+                        '/<iframe.*?wistia/i',
+                        '/<iframe.*?loom/i',
+                        '/<iframe.*?panopto/i',
+                        '/<embed.*?type=["\']video/i',
+                        '/\[video\]/i',
+                        '/src=["\'].*?\.(mp4|avi|mov|webm)/i',
+                    ];
+
+                    foreach ($embed_patterns as $pattern) {
+                        if (preg_match($pattern, $content)) {
+                            $es_video = true;
+                            break;
+                        }
                     }
                 }
             }
@@ -759,16 +813,44 @@ class report_analyzer {
                     if (isset($chapter->content)) {
                         $content = $chapter->content;
 
-                        $embed_patterns = [
-                            '/<video[\s>]/i',
-                            '/<iframe.*?(youtube|vimeo|dailymotion|wistia|loom|panopto)/i',
-                            '/src=["\'].*?\.(mp4|avi|mov|webm)/i',
+                        // Buscar URLs de video en el contenido del capítulo
+                        $video_url_patterns = [
+                            '/youtube\.com\/watch/i',
+                            '/youtu\.be\//i',
+                            '/youtube\.com\/embed/i',
+                            '/vimeo\.com\//i',
+                            '/dailymotion\.com/i',
+                            '/wistia\.com/i',
+                            '/loom\.com/i',
+                            '/panopto\./i',
+                            '/kaltura\./i',
+                            '/drive\.google\.com.*\/file/i',
+                            '/\.mp4(\?|"|\'|>|$)/i',
+                            '/\.avi(\?|"|\'|>|$)/i',
+                            '/\.mov(\?|"|\'|>|$)/i',
+                            '/\.webm(\?|"|\'|>|$)/i',
                         ];
 
-                        foreach ($embed_patterns as $pattern) {
+                        foreach ($video_url_patterns as $pattern) {
                             if (preg_match($pattern, $content)) {
                                 $es_video = true;
                                 break 2;
+                            }
+                        }
+
+                        // Si no se encontró URL, buscar tags HTML
+                        if (!$es_video) {
+                            $embed_patterns = [
+                                '/<video[\s>]/i',
+                                '/<iframe.*?(youtube|vimeo|dailymotion|wistia|loom|panopto)/i',
+                                '/src=["\'].*?\.(mp4|avi|mov|webm)/i',
+                            ];
+
+                            foreach ($embed_patterns as $pattern) {
+                                if (preg_match($pattern, $content)) {
+                                    $es_video = true;
+                                    break 2;
+                                }
                             }
                         }
                     }
