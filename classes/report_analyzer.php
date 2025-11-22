@@ -161,10 +161,11 @@ class report_analyzer {
     }
 
     /**
-     * Analiza la sección "Recursos o Material de Apoyo" de un curso por semanas
+     * Analiza las secciones de un curso por semanas
      *
-     * NOTA: Este análisis es ESPECÍFICO para la sección "Recursos o Material de Apoyo".
-     * En el futuro se agregarán métodos adicionales para analizar otras secciones del curso.
+     * Este método analiza las siguientes secciones:
+     * 1. "Recursos o Material de Apoyo" - con sus semanas
+     * 2. "Actividades de Aprendizaje" - con sus semanas
      *
      * Modalidades analizadas:
      * - Presencial, Semipresencial, Híbrida, En Línea: Mínimo 3 semanas, 1 recurso/semana
@@ -174,7 +175,7 @@ class report_analyzer {
      *
      * @param int $course_id ID del curso
      * @param string $modalidad_name Nombre de la modalidad
-     * @return array Resultados del análisis de la sección Material de Apoyo
+     * @return array Resultados del análisis con ambas secciones
      */
     public static function analyze_course_resources($course_id, $modalidad_name) {
         global $DB;
@@ -209,7 +210,57 @@ class report_analyzer {
         $minimo_semanas = $es_distancia ? 8 : 3;
         $minimo_recursos_por_semana = $es_distancia ? 3 : 1;
 
-        // PASO 1: Buscar la sección "Recursos o Material de Apoyo"
+        // Analizar sección "Recursos o Material de Apoyo"
+        $material_apoyo = self::analyze_section_by_weeks(
+            $course_id,
+            ['Material de Apoyo', 'Recursos', 'Material'],
+            $course_startdate,
+            $minimo_recursos_por_semana
+        );
+
+        // Analizar sección "Actividades de Aprendizaje"
+        $actividades_aprendizaje = self::analyze_section_by_weeks(
+            $course_id,
+            ['Actividades de Aprendizaje', 'Actividades'],
+            $course_startdate,
+            $minimo_recursos_por_semana
+        );
+
+        // Si ninguna sección fue encontrada, retornar error
+        if (!$material_apoyo['encontrada'] && !$actividades_aprendizaje['encontrada']) {
+            return [
+                'requiere_analisis' => false,
+                'mensaje' => 'No se encontraron las secciones "Recursos o Material de Apoyo" ni "Actividades de Aprendizaje" en este curso.'
+            ];
+        }
+
+        return [
+            'requiere_analisis' => true,
+            'es_distancia' => $es_distancia,
+            'minimo_semanas' => $minimo_semanas,
+            'minimo_recursos_por_semana' => $minimo_recursos_por_semana,
+            'course_startdate' => $course_startdate,
+            'modalidad_name' => $modalidad_name,
+            'secciones' => [
+                'material_apoyo' => $material_apoyo,
+                'actividades_aprendizaje' => $actividades_aprendizaje
+            ]
+        ];
+    }
+
+    /**
+     * Analiza una sección específica del curso por semanas
+     *
+     * @param int $course_id ID del curso
+     * @param array $section_patterns Patrones para buscar la sección
+     * @param int $course_startdate Fecha de inicio del curso
+     * @param int $minimo_recursos_por_semana Mínimo de recursos requeridos por semana
+     * @return array Análisis de la sección
+     */
+    private static function analyze_section_by_weeks($course_id, $section_patterns, $course_startdate, $minimo_recursos_por_semana) {
+        global $DB;
+
+        // PASO 1: Buscar la sección usando los patrones proporcionados
         $sql_section = "SELECT id, name, section
                         FROM {course_sections}
                         WHERE course = :course_id
@@ -218,40 +269,50 @@ class report_analyzer {
 
         $all_sections = $DB->get_records_sql($sql_section, ['course_id' => $course_id]);
 
-        $material_apoyo_section_id = null;
-        $material_apoyo_section_name = '';
+        $section_id = null;
+        $section_name = '';
 
-        // Buscar la sección que contenga "Material de Apoyo" o "Recursos"
+        // Buscar la sección que coincida con alguno de los patrones
         foreach ($all_sections as $section) {
-            $section_name = $section->name ? $section->name : '';
+            $current_section_name = $section->name ? $section->name : '';
 
-            if (stripos($section_name, 'Material de Apoyo') !== false ||
-                stripos($section_name, 'Recursos') !== false ||
-                stripos($section_name, 'Material') !== false) {
-                $material_apoyo_section_id = $section->id;
-                $material_apoyo_section_name = $section_name;
-                break;
+            foreach ($section_patterns as $pattern) {
+                if (stripos($current_section_name, $pattern) !== false) {
+                    $section_id = $section->id;
+                    $section_name = $current_section_name;
+                    break 2; // Salir de ambos foreach
+                }
             }
         }
 
-        // Si no se encuentra la sección, retornar error
-        if (!$material_apoyo_section_id) {
+        // Si no se encuentra la sección, retornar que no fue encontrada
+        if (!$section_id) {
             return [
-                'requiere_analisis' => false,
-                'mensaje' => 'No se encontró la sección "Recursos o Material de Apoyo" en este curso. Por favor, cree una sección con ese nombre para poder realizar el análisis.'
+                'encontrada' => false,
+                'nombre' => '',
+                'semanas' => [],
+                'total_semanas' => 0,
+                'semanas_cumplen' => 0,
+                'cumple_minimo' => false,
+                'porcentaje_cumplimiento' => 0
             ];
         }
 
         // PASO 2: Obtener la secuencia de módulos de la sección
         $section_data = $DB->get_record('course_sections',
-            ['id' => $material_apoyo_section_id],
+            ['id' => $section_id],
             'id, sequence'
         );
 
         if (!$section_data || empty($section_data->sequence)) {
             return [
-                'requiere_analisis' => false,
-                'mensaje' => 'La sección "' . $material_apoyo_section_name . '" no tiene contenido. Por favor, agregue recursos y etiquetas de semana.'
+                'encontrada' => true,
+                'nombre' => $section_name,
+                'semanas' => [],
+                'total_semanas' => 0,
+                'semanas_cumplen' => 0,
+                'cumple_minimo' => false,
+                'porcentaje_cumplimiento' => 0
             ];
         }
 
@@ -261,8 +322,13 @@ class report_analyzer {
 
         if (empty($module_ids)) {
             return [
-                'requiere_analisis' => false,
-                'mensaje' => 'La sección "' . $material_apoyo_section_name . '" no tiene módulos visibles.'
+                'encontrada' => true,
+                'nombre' => $section_name,
+                'semanas' => [],
+                'total_semanas' => 0,
+                'semanas_cumplen' => 0,
+                'cumple_minimo' => false,
+                'porcentaje_cumplimiento' => 0
             ];
         }
 
@@ -384,18 +450,12 @@ class report_analyzer {
         }
 
         return [
-            'requiere_analisis' => true,
-            'es_distancia' => $es_distancia,
-            'minimo_semanas' => $minimo_semanas,
-            'minimo_recursos_por_semana' => $minimo_recursos_por_semana,
+            'encontrada' => true,
+            'nombre' => $section_name,
             'total_semanas' => $total_semanas,
             'semanas_cumplen' => $semanas_cumplen,
-            'cumple_minimo' => $total_semanas >= $minimo_semanas,
             'porcentaje_cumplimiento' => $total_semanas > 0 ? round(($semanas_cumplen / $total_semanas) * 100, 2) : 0,
-            'semanas' => $semanas_analisis,
-            'course_startdate' => $course_startdate,
-            'modalidad_name' => $modalidad_name,
-            'seccion_analizada' => $material_apoyo_section_name
+            'semanas' => $semanas_analisis
         ];
     }
 

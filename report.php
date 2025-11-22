@@ -114,17 +114,8 @@ echo $OUTPUT->header();
 
     <!-- Análisis del curso -->
     <div class="course-analysis">
-        <h4>Análisis: Sección "Recursos o Material de Apoyo"</h4>
-        <?php if (isset($analisis['seccion_analizada']) && $analisis['seccion_analizada']): ?>
-            <p class="text-muted">
-                <small>
-                    <i class="icon fa fa-folder fa-fw"></i>
-                    Sección analizada: <strong><?php echo format_string($analisis['seccion_analizada']); ?></strong>
-                </small>
-            </p>
-        <?php else: ?>
-            <p class="text-muted"><small>Análisis por semanas de la sección de Material de Apoyo del curso</small></p>
-        <?php endif; ?>
+        <h4>Análisis por Secciones</h4>
+        <p class="text-muted"><small>Análisis por semanas de las secciones del curso</small></p>
 
         <?php if (!$analisis['requiere_analisis']): ?>
             <div class="alert alert-secondary">
@@ -132,83 +123,81 @@ echo $OUTPUT->header();
                 <?php echo $analisis['mensaje']; ?>
             </div>
         <?php else: ?>
-            <!-- Resumen general -->
-            <div class="analysis-summary card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Resumen General</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3">
-                            <div class="stat-box text-center p-4 border rounded bg-light">
-                                <h2 class="display-4 mb-0"><?php echo $analisis['total_semanas']; ?></h2>
-                                <small class="text-muted">Total Semanas</small>
-                            </div>
+            <?php
+            // Iterar sobre las secciones a analizar
+            $secciones_a_mostrar = [
+                'material_apoyo' => 'Recursos o Material de Apoyo',
+                'actividades_aprendizaje' => 'Actividades de Aprendizaje'
+            ];
+
+            foreach ($secciones_a_mostrar as $seccion_key => $seccion_titulo):
+                $seccion = $analisis['secciones'][$seccion_key];
+
+                // Solo mostrar si la sección fue encontrada
+                if (!$seccion['encontrada']) {
+                    continue;
+                }
+            ?>
+                <!-- Sección: <?php echo $seccion_titulo; ?> -->
+                <div class="section-analysis mb-5">
+                    <div class="section-header card bg-primary text-white mb-3">
+                        <div class="card-body">
+                            <h5 class="mb-0">
+                                <i class="icon fa fa-folder-open fa-fw"></i>
+                                <?php echo $seccion_titulo; ?>
+                            </h5>
+                            <small>Sección: <strong><?php echo format_string($seccion['nombre']); ?></strong></small>
                         </div>
-                        <div class="col-md-3">
-                            <div class="stat-box text-center p-4 border rounded bg-light">
-                                <h2 class="display-4 mb-0 <?php echo $analisis['semanas_cumplen'] > 0 ? 'text-success' : 'text-danger'; ?>">
-                                    <?php echo $analisis['semanas_cumplen']; ?>
-                                </h2>
-                                <small class="text-muted">Semanas que Cumplen</small>
-                            </div>
+                    </div>
+
+                    <!-- Resumen de la sección -->
+                    <div class="analysis-summary card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">Resumen</h6>
                         </div>
-                        <div class="col-md-3">
-                            <div class="stat-box text-center p-4 border rounded bg-light">
-                                <h2 class="display-4 mb-0 <?php
-                                    if ($analisis['porcentaje_cumplimiento'] >= 80) echo 'text-success';
-                                    else if ($analisis['porcentaje_cumplimiento'] >= 60) echo 'text-warning';
-                                    else echo 'text-danger';
-                                ?>">
-                                    <?php echo $analisis['porcentaje_cumplimiento']; ?>%
-                                </h2>
-                                <small class="text-muted">Cumplimiento</small>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="stat-box text-center p-4 border rounded
-                                <?php echo $analisis['cumple_minimo'] ? 'bg-success text-white' : 'bg-danger text-white'; ?>">
-                                <h2 class="display-4 mb-0"><?php echo $analisis['cumple_minimo'] ? '✓' : '✗'; ?></h2>
-                                <small>Cumple Mínimo (<?php echo $analisis['minimo_semanas']; ?> semanas)</small>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="stat-box text-center p-4 border rounded bg-light">
+                                        <h2 class="display-4 mb-0"><?php echo $seccion['total_semanas']; ?></h2>
+                                        <small class="text-muted">Total Semanas</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="stat-box text-center p-4 border rounded bg-light">
+                                        <h2 class="display-4 mb-0 <?php echo $seccion['semanas_cumplen'] > 0 ? 'text-success' : 'text-danger'; ?>">
+                                            <?php echo $seccion['semanas_cumplen']; ?>
+                                        </h2>
+                                        <small class="text-muted">Semanas que Cumplen</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="stat-box text-center p-4 border rounded bg-light">
+                                        <h2 class="display-4 mb-0 <?php
+                                            if ($seccion['porcentaje_cumplimiento'] >= 80) echo 'text-success';
+                                            else if ($seccion['porcentaje_cumplimiento'] >= 60) echo 'text-warning';
+                                            else echo 'text-danger';
+                                        ?>">
+                                            <?php echo $seccion['porcentaje_cumplimiento']; ?>%
+                                        </h2>
+                                        <small class="text-muted">Cumplimiento</small>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Estado general -->
-                    <div class="row mt-4">
-                        <div class="col-md-12">
-                            <?php
-                            $estado = 'No Cumple';
-                            $clase = 'danger';
-                            if ($analisis['cumple_minimo'] && $analisis['porcentaje_cumplimiento'] >= 80) {
-                                $estado = 'Cumple Satisfactoriamente';
-                                $clase = 'success';
-                            } else if ($analisis['porcentaje_cumplimiento'] >= 60) {
-                                $estado = 'Cumple Parcialmente';
-                                $clase = 'warning';
-                            }
-                            ?>
-                            <div class="alert alert-<?php echo $clase; ?> text-center">
-                                <h5 class="mb-0">
-                                    <strong>Estado General:</strong> <?php echo $estado; ?>
-                                </h5>
+                    <!-- Detalle por semanas -->
+                    <div class="weeks-detail">
+                        <h6>Detalle por Semanas</h6>
+
+                        <?php if (empty($seccion['semanas'])): ?>
+                            <div class="alert alert-warning">
+                                <i class="icon fa fa-exclamation-triangle fa-fw"></i>
+                                No se encontraron semanas en esta sección. Asegúrate de que la sección tenga etiquetas con "Semana 1", "Semana 2", etc.
                             </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Detalle por semanas -->
-            <div class="weeks-detail">
-                <h5>Detalle por Semanas</h5>
-
-                <?php if (empty($analisis['semanas'])): ?>
-                    <div class="alert alert-warning">
-                        <i class="icon fa fa-exclamation-triangle fa-fw"></i>
-                        No se encontraron semanas en este curso. Asegúrate de que las secciones tengan nombres como "Semana 1", "Semana 2", etc.
-                    </div>
-                <?php else: ?>
-                    <?php foreach ($analisis['semanas'] as $semana): ?>
+                        <?php else: ?>
+                            <?php foreach ($seccion['semanas'] as $semana): ?>
                         <div class="week-item card mb-3 <?php echo $semana['cumple'] ? 'border-success' : 'border-danger'; ?>">
                             <div class="card-header <?php echo $semana['cumple'] ? 'bg-success text-white' : 'bg-danger text-white'; ?>">
                                 <div class="d-flex justify-content-between align-items-center">
@@ -310,9 +299,11 @@ echo $OUTPUT->header();
                                 <?php endif; ?>
                             </div>
                         </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endforeach; ?>
 
             <!-- Nota informativa -->
             <div class="alert alert-info mt-4">
@@ -321,7 +312,7 @@ echo $OUTPUT->header();
                     <li>Cada semana debe tener al menos <strong><?php echo $analisis['minimo_recursos_por_semana']; ?> recurso(s)</strong> generado por el docente (página, archivo, etiqueta, libro, carpeta, URL)</li>
                     <li>Cada semana debe incluir al menos <strong>1 video</strong> (archivo de video, URL de YouTube/Vimeo, o video embebido)</li>
                     <li>Todos los recursos deben haber sido editados <strong>después de la fecha de inicio del curso</strong> (<?php echo userdate($analisis['course_startdate'], '%d/%m/%Y'); ?>)</li>
-                    <li>La modalidad requiere un mínimo de <strong><?php echo $analisis['minimo_semanas']; ?> semanas</strong>
+                    <li>La modalidad requiere un mínimo de <strong><?php echo $analisis['minimo_semanas']; ?> semanas</strong> en cada sección
                         <?php if ($analisis['es_distancia']): ?>
                             <span class="badge badge-warning">Modalidad Distancia</span>
                         <?php endif; ?>
