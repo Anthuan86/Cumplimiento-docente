@@ -120,6 +120,15 @@ echo $OUTPUT->header();
                         }
                         ?></pre>
 
+                        <?php if (isset($seccion['debug_log']) && !empty($seccion['debug_log'])): ?>
+                            <h6>Debug Log Detallado:</h6>
+                            <pre style="background: #fff3cd; padding: 15px; border-radius: 5px; font-size: 11px; max-height: 400px; overflow-y: auto;"><?php
+                            foreach ($seccion['debug_log'] as $log_entry) {
+                                echo htmlspecialchars($log_entry) . "\n";
+                            }
+                            ?></pre>
+                        <?php endif; ?>
+
                     <?php else: ?>
                         <p class="text-muted">Sección no encontrada en el curso</p>
                     <?php endif; ?>

@@ -359,6 +359,7 @@ class report_analyzer {
         // Array asociativo para almacenar semanas por número (evita duplicados)
         $semanas_por_numero = [];
         $semana_numero_actual = null;
+        $debug_log = []; // Para debugging
 
         // PASO 4: Procesar cada módulo en el orden correcto de la sección
         foreach ($ordered_modules as $module) {
@@ -374,6 +375,10 @@ class report_analyzer {
                         if (preg_match('/semana\s*(\d+)/i', strip_tags($label_content), $matches)) {
                             $es_etiqueta_semana = true;
                             $semana_numero_actual = intval($matches[1]);
+
+                            // Logging para debug
+                            $ya_existe = isset($semanas_por_numero[$semana_numero_actual]);
+                            $debug_log[] = "Módulo {$module->id}: Detectada etiqueta Semana {$semana_numero_actual}" . ($ya_existe ? ' (YA EXISTE)' : ' (NUEVA)');
 
                             // Si esta semana no existe, crearla
                             if (!isset($semanas_por_numero[$semana_numero_actual])) {
@@ -422,12 +427,18 @@ class report_analyzer {
             }
         }
 
+        // Log del estado del array asociativo antes de convertir
+        $debug_log[] = "Array asociativo tiene " . count($semanas_por_numero) . " elementos: " . implode(', ', array_keys($semanas_por_numero));
+
         // Convertir array asociativo a array indexado y ordenar por número de semana
         $semanas_analisis = [];
         ksort($semanas_por_numero); // Ordenar por número de semana
-        foreach ($semanas_por_numero as $semana) {
+        foreach ($semanas_por_numero as $num_semana => $semana) {
+            $debug_log[] = "Agregando al array final: Semana {$num_semana}";
             $semanas_analisis[] = $semana;
         }
+
+        $debug_log[] = "Array final tiene " . count($semanas_analisis) . " elementos";
 
         // Evaluar cumplimiento de cada semana según la modalidad
         foreach ($semanas_analisis as &$semana) {
@@ -455,7 +466,8 @@ class report_analyzer {
             'total_semanas' => $total_semanas,
             'semanas_cumplen' => $semanas_cumplen,
             'porcentaje_cumplimiento' => $total_semanas > 0 ? round(($semanas_cumplen / $total_semanas) * 100, 2) : 0,
-            'semanas' => $semanas_analisis
+            'semanas' => $semanas_analisis,
+            'debug_log' => $debug_log  // Para debugging temporal
         ];
     }
 
