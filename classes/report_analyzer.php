@@ -451,6 +451,7 @@ class report_analyzer {
             // La semana cumple si tiene ambos requisitos
             $semana['cumple'] = $cumple_recursos && $cumple_video;
         }
+        unset($semana); // IMPORTANTE: Romper la referencia para evitar bugs
 
         $total_semanas = count($semanas_analisis);
         $semanas_cumplen = 0;
@@ -459,6 +460,10 @@ class report_analyzer {
                 $semanas_cumplen++;
             }
         }
+
+        // Debug: verificar que el array sigue correcto después de los loops
+        $numeros_finales = array_map(function($s) { return $s['semana']; }, $semanas_analisis);
+        $debug_log[] = "Números después de evaluación: " . implode(', ', $numeros_finales);
 
         return [
             'encontrada' => true,
