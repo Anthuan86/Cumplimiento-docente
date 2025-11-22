@@ -228,7 +228,8 @@ echo $OUTPUT->header();
             // Iterar sobre las secciones a analizar
             $secciones_a_mostrar = [
                 'material_apoyo' => 'Recursos o Material de Apoyo',
-                'actividades_aprendizaje' => 'Actividades de Aprendizaje'
+                'actividades_aprendizaje' => 'Actividades de Aprendizaje',
+                'actividades_finales' => 'Actividades Finales'
             ];
 
             foreach ($secciones_a_mostrar as $seccion_key => $seccion_titulo):
@@ -257,42 +258,161 @@ echo $OUTPUT->header();
                             <h6 class="mb-0">Resumen</h6>
                         </div>
                         <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="stat-box text-center p-4 border rounded bg-light">
-                                        <h2 class="display-4 mb-0"><?php echo $seccion['total_semanas']; ?></h2>
-                                        <small class="text-muted">Total Semanas</small>
+                            <?php if ($seccion_key === 'actividades_finales'): ?>
+                                <!-- Resumen para Actividades Finales -->
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="stat-box text-center p-4 border rounded bg-light">
+                                            <h2 class="display-4 mb-0"><?php echo $seccion['total_actividades']; ?></h2>
+                                            <small class="text-muted">Actividades Encontradas</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="stat-box text-center p-4 border rounded <?php echo $seccion['cumple'] ? 'bg-success' : 'bg-danger'; ?> text-white">
+                                            <h2 class="display-4 mb-0">
+                                                <?php echo $seccion['cumple'] ? '✓' : '✗'; ?>
+                                            </h2>
+                                            <small><?php echo $seccion['cumple'] ? 'Cumple' : 'No Cumple'; ?></small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="stat-box text-center p-4 border rounded bg-light">
+                                            <p class="mb-0"><small><?php echo $seccion['mensaje']; ?></small></p>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
-                                    <div class="stat-box text-center p-4 border rounded bg-light">
-                                        <h2 class="display-4 mb-0 <?php echo $seccion['semanas_cumplen'] > 0 ? 'text-success' : 'text-danger'; ?>">
-                                            <?php echo $seccion['semanas_cumplen']; ?>
-                                        </h2>
-                                        <small class="text-muted">Semanas que Cumplen</small>
+                            <?php else: ?>
+                                <!-- Resumen para Material de Apoyo y Actividades de Aprendizaje -->
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="stat-box text-center p-4 border rounded bg-light">
+                                            <h2 class="display-4 mb-0"><?php echo $seccion['total_semanas']; ?></h2>
+                                            <small class="text-muted">Total Semanas</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="stat-box text-center p-4 border rounded bg-light">
+                                            <h2 class="display-4 mb-0 <?php echo $seccion['semanas_cumplen'] > 0 ? 'text-success' : 'text-danger'; ?>">
+                                                <?php echo $seccion['semanas_cumplen']; ?>
+                                            </h2>
+                                            <small class="text-muted">Semanas que Cumplen</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="stat-box text-center p-4 border rounded bg-light">
+                                            <h2 class="display-4 mb-0 <?php
+                                                if ($seccion['porcentaje_cumplimiento'] >= 80) echo 'text-success';
+                                                else if ($seccion['porcentaje_cumplimiento'] >= 60) echo 'text-warning';
+                                                else echo 'text-danger';
+                                            ?>">
+                                                <?php echo $seccion['porcentaje_cumplimiento']; ?>%
+                                            </h2>
+                                            <small class="text-muted">Cumplimiento</small>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
-                                    <div class="stat-box text-center p-4 border rounded bg-light">
-                                        <h2 class="display-4 mb-0 <?php
-                                            if ($seccion['porcentaje_cumplimiento'] >= 80) echo 'text-success';
-                                            else if ($seccion['porcentaje_cumplimiento'] >= 60) echo 'text-warning';
-                                            else echo 'text-danger';
-                                        ?>">
-                                            <?php echo $seccion['porcentaje_cumplimiento']; ?>%
-                                        </h2>
-                                        <small class="text-muted">Cumplimiento</small>
-                                    </div>
-                                </div>
-                            </div>
+                            <?php endif; ?>
                         </div>
                     </div>
 
-                    <!-- Detalle por semanas -->
+                    <!-- Detalle por semanas o actividades -->
                     <div class="weeks-detail">
-                        <h6>Detalle por Semanas</h6>
+                        <?php if ($seccion_key === 'actividades_finales'): ?>
+                            <!-- Detalle de Actividades Finales -->
+                            <h6>Detalle de Actividades Finales</h6>
 
-                        <?php if (empty($seccion['semanas'])): ?>
+                            <?php if (empty($seccion['actividades'])): ?>
+                                <div class="alert alert-warning">
+                                    <i class="icon fa fa-exclamation-triangle fa-fw"></i>
+                                    No se encontraron actividades finales válidas en esta sección.
+                                </div>
+                            <?php else: ?>
+                                <?php foreach ($seccion['actividades'] as $actividad): ?>
+                                    <div class="activity-item card mb-3 <?php echo $actividad['es_valido'] ? 'border-success' : 'border-danger'; ?>">
+                                        <div class="card-header <?php echo $actividad['es_valido'] ? 'bg-success text-white' : 'bg-danger text-white'; ?>">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <strong><?php echo format_string($actividad['nombre']); ?></strong>
+                                                <span class="badge badge-light <?php echo $actividad['es_valido'] ? 'text-success' : 'text-danger'; ?>">
+                                                    <?php echo $actividad['es_valido'] ? '✓ Cumple' : '✗ No Cumple'; ?>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <?php if ($actividad['tipo'] === 'quiz'): ?>
+                                                <!-- Detalles para Cuestionario -->
+                                                <div class="row mb-3">
+                                                    <div class="col-md-3">
+                                                        <div class="requirement-box p-3 border rounded <?php echo $actividad['nombre_valido'] ? 'bg-success-light' : 'bg-danger-light'; ?>">
+                                                            <i class="icon fa fa-<?php echo $actividad['nombre_valido'] ? 'check-circle text-success' : 'times-circle text-danger'; ?> fa-fw"></i>
+                                                            <strong>Nombre:</strong><br>
+                                                            <small><?php echo $actividad['nombre_valido'] ? 'Contiene "Evaluación Final" ✓' : 'No contiene "Evaluación Final" ✗'; ?></small>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <div class="requirement-box p-3 border rounded <?php echo $actividad['cumple_preguntas'] ? 'bg-success-light' : 'bg-danger-light'; ?>">
+                                                            <i class="icon fa fa-<?php echo $actividad['cumple_preguntas'] ? 'check-circle text-success' : 'times-circle text-danger'; ?> fa-fw"></i>
+                                                            <strong>Preguntas:</strong><br>
+                                                            <small><?php echo $actividad['total_preguntas']; ?> de 30 mínimo <?php echo $actividad['cumple_preguntas'] ? '✓' : '✗'; ?></small>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <div class="requirement-box p-3 border rounded <?php echo $actividad['tiene_intentos'] ? 'bg-success-light' : 'bg-danger-light'; ?>">
+                                                            <i class="icon fa fa-<?php echo $actividad['tiene_intentos'] ? 'check-circle text-success' : 'times-circle text-danger'; ?> fa-fw"></i>
+                                                            <strong>Intentos:</strong><br>
+                                                            <small><?php echo $actividad['intentos_permitidos']; ?> intento(s) <?php echo $actividad['tiene_intentos'] ? '✓' : '✗'; ?></small>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <div class="requirement-box p-3 border rounded <?php echo $actividad['fecha_valida'] ? 'bg-success-light' : 'bg-danger-light'; ?>">
+                                                            <i class="icon fa fa-<?php echo $actividad['fecha_valida'] ? 'check-circle text-success' : 'times-circle text-danger'; ?> fa-fw"></i>
+                                                            <strong>Fecha:</strong><br>
+                                                            <small><?php echo $actividad['fecha_valida'] ? 'Posterior al inicio ✓' : 'Anterior al inicio ✗'; ?></small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            <?php else: ?>
+                                                <!-- Detalles para Tarea -->
+                                                <div class="row mb-3">
+                                                    <div class="col-md-3">
+                                                        <div class="requirement-box p-3 border rounded <?php echo $actividad['nombre_valido'] ? 'bg-success-light' : 'bg-danger-light'; ?>">
+                                                            <i class="icon fa fa-<?php echo $actividad['nombre_valido'] ? 'check-circle text-success' : 'times-circle text-danger'; ?> fa-fw"></i>
+                                                            <strong>Nombre:</strong><br>
+                                                            <small><?php echo $actividad['nombre_valido'] ? 'Contiene "' . $actividad['nombre_esperado'] . '" ✓' : 'No contiene "' . $actividad['nombre_esperado'] . '" ✗'; ?></small>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <div class="requirement-box p-3 border rounded <?php echo $actividad['tiene_entregas'] ? 'bg-success-light' : 'bg-danger-light'; ?>">
+                                                            <i class="icon fa fa-<?php echo $actividad['tiene_entregas'] ? 'check-circle text-success' : 'times-circle text-danger'; ?> fa-fw"></i>
+                                                            <strong>Entregas:</strong><br>
+                                                            <small><?php echo $actividad['tiene_entregas'] ? 'Habilitadas ✓' : 'No habilitadas ✗'; ?></small>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <div class="requirement-box p-3 border rounded <?php echo $actividad['tiene_configuracion'] ? 'bg-success-light' : 'bg-warning-light'; ?>">
+                                                            <i class="icon fa fa-<?php echo $actividad['tiene_configuracion'] ? 'check-circle text-success' : 'info-circle text-warning'; ?> fa-fw"></i>
+                                                            <strong>Configuración:</strong><br>
+                                                            <small><?php echo $actividad['tiene_configuracion'] ? 'Configurada ✓' : 'Sin fechas'; ?></small>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <div class="requirement-box p-3 border rounded <?php echo $actividad['fecha_valida'] ? 'bg-success-light' : 'bg-danger-light'; ?>">
+                                                            <i class="icon fa fa-<?php echo $actividad['fecha_valida'] ? 'check-circle text-success' : 'times-circle text-danger'; ?> fa-fw"></i>
+                                                            <strong>Fecha:</strong><br>
+                                                            <small><?php echo $actividad['fecha_valida'] ? 'Posterior al inicio ✓' : 'Anterior al inicio ✗'; ?></small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+
+                        <?php else: ?>
+                            <!-- Detalle por Semanas (Material de Apoyo y Actividades de Aprendizaje) -->
+                            <h6>Detalle por Semanas</h6>
+
+                            <?php if (empty($seccion['semanas'])): ?>
                             <div class="alert alert-warning">
                                 <i class="icon fa fa-exclamation-triangle fa-fw"></i>
                                 No se encontraron semanas en esta sección. Asegúrate de que la sección tenga etiquetas con "Semana 1", "Semana 2", etc.
@@ -501,6 +621,7 @@ echo $OUTPUT->header();
                         </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
+                        <?php endif; ?>  <!-- Fin del else para semanas -->
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -527,6 +648,26 @@ echo $OUTPUT->header();
                     <li>Tipos válidos: Tarea, Taller, H5P, Foro, Cuestionario, Encuesta, Lección</li>
                     <li>Debe tener <strong>condiciones de finalización configuradas</strong></li>
                     <li>Debe estar editada <strong>después de la fecha de inicio del curso</strong></li>
+                </ul>
+
+                <p><strong>Sección: Actividades Finales</strong></p>
+                <ul>
+                    <?php if ($analisis['es_distancia']): ?>
+                        <li>Debe tener <strong>al menos UNA</strong> de las siguientes actividades:</li>
+                        <ul>
+                            <li><strong>Evaluación Final</strong> (Cuestionario): mínimo 30 preguntas, intentos configurados</li>
+                            <li><strong>Caso de Estudio</strong> (Tarea): con entregas habilitadas</li>
+                        </ul>
+                    <?php else: ?>
+                        <li>Debe tener <strong>al menos UNA</strong> de las siguientes actividades:</li>
+                        <ul>
+                            <li><strong>Evaluación Final</strong> (Cuestionario): mínimo 30 preguntas, intentos configurados</li>
+                            <li><strong>Caso de Estudio</strong> (Tarea): con entregas habilitadas</li>
+                            <li><strong>Portafolio del Estudiante</strong> (Tarea): con entregas habilitadas</li>
+                            <li><strong>Actividad Autoinstruccional</strong> (Tarea): con entregas habilitadas</li>
+                        </ul>
+                    <?php endif; ?>
+                    <li>Todas las actividades deben estar editadas <strong>después de la fecha de inicio del curso</strong></li>
                 </ul>
 
                 <p><strong>Requisitos generales:</strong></p>

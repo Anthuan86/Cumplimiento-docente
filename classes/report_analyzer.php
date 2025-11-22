@@ -301,6 +301,14 @@ class report_analyzer {
             $minimo_actividades_por_semana
         );
 
+        // Analizar sección "Actividades Finales"
+        $actividades_finales = self::analyze_final_activities_section(
+            $course_id,
+            ['Actividades Finales', 'Evaluación Final'],
+            $course_startdate,
+            $es_distancia
+        );
+
         // Si ninguna sección fue encontrada, retornar error
         if (!$material_apoyo['encontrada'] && !$actividades_aprendizaje['encontrada']) {
             return [
@@ -320,7 +328,8 @@ class report_analyzer {
             'modalidad_name' => $modalidad_name,
             'secciones' => [
                 'material_apoyo' => $material_apoyo,
-                'actividades_aprendizaje' => $actividades_aprendizaje
+                'actividades_aprendizaje' => $actividades_aprendizaje,
+                'actividades_finales' => $actividades_finales
             ]
         ];
     }
@@ -1261,6 +1270,209 @@ class report_analyzer {
             // Si hay error, no podemos confirmar interacciones
             return false;
         }
+    }
+
+    /**
+     * Valida si un cuestionario cumple con los requisitos de Evaluación Final
+     * @param object $quiz Instancia del cuestionario
+     * @param object $module Módulo del cuestionario
+     * @param int $course_startdate Fecha de inicio del curso
+     * @return array Información de validación
+     */
+    private static function validate_quiz_final($quiz, $module, $course_startdate) {
+        global $DB;
+
+        $nombre_valido = stripos($quiz->name, 'Evaluación Final') !== false;
+
+        // Contar preguntas del cuestionario
+        $total_preguntas = 0;
+        try {
+            // Obtener el objeto de cuestionario completo
+            $quiz_obj = $DB->get_record('quiz', ['id' => $quiz->id]);
+
+            // Contar las preguntas usando quiz_slots
+            $sql = "SELECT COUNT(*)
+                    FROM {quiz_slots} qs
+                    WHERE qs.quizid = :quizid";
+            $total_preguntas = $DB->count_records_sql($sql, ['quizid' => $quiz->id]);
+        } catch (\Exception $e) {
+            $total_preguntas = 0;
+        }
+
+        $cumple_preguntas = $total_preguntas >= 30;
+
+        // Verificar intentos configurados (debe ser > 0)
+        $tiene_intentos = isset($quiz->attempts) && $quiz->attempts > 0;
+
+        // Verificar fecha de modificación
+        $fecha_modificacion = isset($module->added) ? $module->added : 0;
+        $fecha_valida = $fecha_modificacion > $course_startdate;
+
+        $es_valido = $nombre_valido && $cumple_preguntas && $tiene_intentos && $fecha_valida;
+
+        return [
+            'tipo' => 'quiz',
+            'nombre' => $quiz->name,
+            'nombre_valido' => $nombre_valido,
+            'total_preguntas' => $total_preguntas,
+            'cumple_preguntas' => $cumple_preguntas,
+            'tiene_intentos' => $tiene_intentos,
+            'intentos_permitidos' => isset($quiz->attempts) ? $quiz->attempts : 0,
+            'fecha_valida' => $fecha_valida,
+            'fecha_modificacion' => $fecha_modificacion,
+            'es_valido' => $es_valido
+        ];
+    }
+
+    /**
+     * Valida si una tarea cumple con los requisitos de actividad final
+     * @param object $assign Instancia de la tarea
+     * @param object $module Módulo de la tarea
+     * @param int $course_startdate Fecha de inicio del curso
+     * @param string $nombre_esperado Nombre esperado de la actividad
+     * @return array Información de validación
+     */
+    private static function validate_assign_final($assign, $module, $course_startdate, $nombre_esperado) {
+        global $DB;
+
+        $nombre_valido = stripos($assign->name, $nombre_esperado) !== false;
+
+        // Verificar que tenga entregas habilitadas
+        $tiene_entregas = true; // Las tareas por defecto permiten entregas
+
+        // Verificar si tiene configuración de entregas
+        $tiene_configuracion = isset($assign->duedate) || isset($assign->allowsubmissionsfromdate);
+
+        // Verificar fecha de modificación
+        $fecha_modificacion = isset($assign->timemodified) ? $assign->timemodified : 0;
+        if ($fecha_modificacion == 0 && isset($module->added)) {
+            $fecha_modificacion = $module->added;
+        }
+        $fecha_valida = $fecha_modificacion > $course_startdate;
+
+        $es_valido = $nombre_valido && $tiene_entregas && $fecha_valida;
+
+        return [
+            'tipo' => 'assign',
+            'nombre' => $assign->name,
+            'nombre_esperado' => $nombre_esperado,
+            'nombre_valido' => $nombre_valido,
+            'tiene_entregas' => $tiene_entregas,
+            'tiene_configuracion' => $tiene_configuracion,
+            'fecha_valida' => $fecha_valida,
+            'fecha_modificacion' => $fecha_modificacion,
+            'es_valido' => $es_valido
+        ];
+    }
+
+    /**
+     * Analiza la sección de Actividades Finales
+     * @param int $course_id ID del curso
+     * @param array $section_patterns Patrones de nombres para identificar la sección
+     * @param int $course_startdate Fecha de inicio del curso
+     * @param bool $es_distancia Indica si es modalidad a distancia
+     * @return array Resultado del análisis
+     */
+    private static function analyze_final_activities_section($course_id, $section_patterns, $course_startdate, $es_distancia) {
+        global $DB;
+
+        // Buscar la sección
+        $section = null;
+        foreach ($section_patterns as $pattern) {
+            $sections = $DB->get_records('course_sections', ['course' => $course_id]);
+            foreach ($sections as $sec) {
+                if (stripos($sec->name, $pattern) !== false) {
+                    $section = $sec;
+                    break 2;
+                }
+            }
+        }
+
+        if (!$section) {
+            return [
+                'encontrada' => false,
+                'nombre' => '',
+                'cumple' => false,
+                'mensaje' => 'Sección no encontrada'
+            ];
+        }
+
+        // Definir actividades esperadas según modalidad
+        if ($es_distancia) {
+            $actividades_esperadas = [
+                'quiz' => 'Evaluación Final',
+                'assign' => ['Caso de Estudio']
+            ];
+        } else {
+            // Presencial, Semipresencial, Híbrida, En Línea
+            $actividades_esperadas = [
+                'quiz' => 'Evaluación Final',
+                'assign' => ['Caso de Estudio', 'Portafolio del Estudiante', 'Actividad Autoinstruccional']
+            ];
+        }
+
+        // Obtener módulos de la sección
+        $modules_ids = explode(',', $section->sequence);
+        $modules_ids = array_filter($modules_ids);
+
+        $actividades_encontradas = [];
+        $cumple = false;
+
+        foreach ($modules_ids as $module_id) {
+            $module = $DB->get_record('course_modules', ['id' => $module_id]);
+            if (!$module) continue;
+
+            $modname = $DB->get_field('modules', 'name', ['id' => $module->module]);
+
+            // Verificar cuestionarios (Evaluación Final)
+            if ($modname === 'quiz') {
+                $quiz = $DB->get_record('quiz', ['id' => $module->instance]);
+                if ($quiz && stripos($quiz->name, 'Evaluación Final') !== false) {
+                    $validacion = self::validate_quiz_final($quiz, $module, $course_startdate);
+                    $actividades_encontradas[] = $validacion;
+                    if ($validacion['es_valido']) {
+                        $cumple = true;
+                    }
+                }
+            }
+
+            // Verificar tareas (Caso de Estudio, Portafolio, Actividad Autoinstruccional)
+            if ($modname === 'assign') {
+                $assign = $DB->get_record('assign', ['id' => $module->instance]);
+                if ($assign) {
+                    foreach ($actividades_esperadas['assign'] as $nombre_esperado) {
+                        if (stripos($assign->name, $nombre_esperado) !== false) {
+                            $validacion = self::validate_assign_final($assign, $module, $course_startdate, $nombre_esperado);
+                            $actividades_encontradas[] = $validacion;
+                            if ($validacion['es_valido']) {
+                                $cumple = true;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Determinar mensaje
+        $mensaje = '';
+        if (empty($actividades_encontradas)) {
+            $mensaje = 'No se encontraron actividades finales válidas en la sección';
+        } else if (!$cumple) {
+            $mensaje = 'Se encontraron actividades pero no cumplen con todos los requisitos';
+        } else {
+            $mensaje = 'La sección cumple con los requisitos';
+        }
+
+        return [
+            'encontrada' => true,
+            'nombre' => $section->name,
+            'cumple' => $cumple,
+            'actividades' => $actividades_encontradas,
+            'total_actividades' => count($actividades_encontradas),
+            'mensaje' => $mensaje,
+            'es_distancia' => $es_distancia
+        ];
     }
 
     /**
